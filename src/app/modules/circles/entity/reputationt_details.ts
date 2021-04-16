@@ -5,25 +5,23 @@ import { Column, Index } from 'typeorm';
 /**
  * 用户各类权重值
  */
- @EntityModel('circles_scores')
- export class CirclesScoretEntity extends BaseEntity {
+ @EntityModel('circles_reputationt_details')
+ export class CirclesReputationtDetailsEntity extends BaseEntity {
    @Index()
    @Column({ comment: 'user id', type: 'bigint'})
    uid: number;
+
+   @Index()
+   @Column({ comment: 'user id', type: 'bigint'})
+   sid: number;
    
    @Index()
    @Column({ comment: 'rw renew nonce'})
    nonce: number;
  
-   @Column({ type: 'float', default: 0 })
-   betweenness: number;
- 
-   @Column({ type: 'float', default: 0 })
-   page_rank: number;
- 
-   @Column({ type: 'float', default: 0 })
-   degree: number;
- 
    @Column({ default: 0 })
-   reputation_score: number;
+   score: number;
+
+   @Column({ nullable: true, length: 55 })
+   nodes: string;
  }

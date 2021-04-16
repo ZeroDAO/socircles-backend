@@ -5,8 +5,8 @@ import { Column, Index } from 'typeorm';
 /**
  * 信任关系
  */
-@EntityModel('circles_scores')
-export class CirclesScoresEntity extends BaseEntity {
+@EntityModel('circles_trust')
+export class CirclesTrustEntity extends BaseEntity {
   @Index()
   @Column({ comment: 'trusted id', type: 'bigint'})
   trusted: number;

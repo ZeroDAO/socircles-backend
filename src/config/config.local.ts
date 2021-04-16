@@ -9,7 +9,7 @@ export default (appInfo: EggAppInfo) => {
     client: {
       url: 'bolt://127.0.0.1',
       username: 'neo4j',
-      password: 'admin',
+      password: '123456',
     },
   }
 

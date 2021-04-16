@@ -3,6 +3,7 @@ import { CoolController, BaseController } from 'midwayjs-cool-core';
 import { IQueue } from 'midwayjs-cool-queue';
 import { CirclesUsersEntity } from '../../entity/users';
 import { CirclesUsersService } from '../../service/users';
+import { CirclesTrustService } from '../../service/trust';
 
 /**
  * 商品
@@ -18,6 +19,8 @@ import { CirclesUsersService } from '../../service/users';
 export class CirclesAppUsersController extends BaseController {
   @Inject()
   circlesUsersService: CirclesUsersService;
+  @Inject()
+  circlesTrustService: CirclesTrustService;
   // 队列
   @Inject()
   demoQueue: IQueue;
@@ -29,6 +32,15 @@ export class CirclesAppUsersController extends BaseController {
    @Get('/getuser')
    async getuser() {
      return this.ok(await this.circlesUsersService.user());
+   }
+  
+  /**
+   * 请求用户数据
+   * @returns
+   */
+   @Post('/cirdata')
+   async cirdata() {
+     return this.ok(await this.circlesTrustService.getTrust());
    }
 
 }

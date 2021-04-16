@@ -8,9 +8,12 @@ import { Column, Index } from 'typeorm';
 @EntityModel('circles_users')
 export class CirclesUsersEntity extends BaseEntity {
   @Index()
-  @Column({ comment: 'circles user id' ,type: 'bigint'})
-  cid: number;
+  @Column({ comment: 'circles user id' , nullable: true})
+  cid: string;
 
-  @Column({ comment: '用户名' })
+  @Column({ comment: '用户名' , nullable: true})
   name: string;
+
+  @Column({ comment: '用户地址' , length: 55})
+  address: string;
 }

@@ -16,6 +16,12 @@ export class CirclesUsersService extends BaseService {
   @Inject('cool:cache')
   coolCache: ICoolCache;
 
+  getConfig() {
+    return {
+      thegraph_url: this.ctx.app.config.thegraph.url,
+    }
+  }
+
   /**
    * 返回所有数据
    */
@@ -30,12 +36,11 @@ export class CirclesUsersService extends BaseService {
    async user() {
     // 每次最多查询100条，然后不管了0
     // const { account_name,offset,pos } = q;
-    // const url = this.getConfig().rpcUrl + '/v1/history/get_actions';
-    const url = 'https://api.thegraph.com/subgraphs/name/circlesubi/circles';
+    const url = this.getConfig().thegraph_url;
     let blockData = await this.ctx.curl(url, {
       method: 'POST',
       contentType: 'json',
-      data: {"query":`{trusts(first: 2) {id,user{id}}}`,"variables":{}},
+      data: {"query":`{trustChanges(first: 1000, where: { id_gt: "12543557-1" }) {id,canSendTo,user,limitPercentage}`,"variables":{}},
       dataType: 'json'
     })
     // 从信任改变记录获取最新数值

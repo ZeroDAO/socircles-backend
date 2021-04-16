@@ -22,6 +22,11 @@ export default (appInfo: EggAppInfo) => {
     },
   };
 
+  // thegraph 请求地址
+  config.thegraph = {
+    url: 'https://api.thegraph.com/subgraphs/name/circlesubi/circles'
+  }
+
   // 靜態目錄及緩存設置
   config.static = {
     prefix: '',

@@ -1,7 +1,3 @@
-<p align="center">
-  <a href="https://midwayjs.org/" target="blank"><img src="https://cool-show.oss-cn-shanghai.aliyuncs.com/admin/logo.png" width="200" alt="Midway Logo" /></a>
-</p>
-
 ## 技术栈
 
 * 后端：**`node.js` `midway.js` `egg.js` `mysql` `typescript` `neo4j` `cool-admin`**
