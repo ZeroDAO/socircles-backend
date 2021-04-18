@@ -1,12 +1,13 @@
 import { Inject, Provide } from '@midwayjs/decorator';
 import { BaseService } from 'midwayjs-cool-core';
 import { Context } from 'egg';
-var neo4j = require('neo4j-driver')
+import neo4j from 'neo4j-driver';
+
 const { inspect } = require('util');
 const Graph = 'trustGraph';
 
 /**
- * 商品
+ * neo4j 数据库接口
  */
 @Provide()
 export class Neo4jService extends BaseService {
@@ -20,7 +21,7 @@ export class Neo4jService extends BaseService {
   }
 
   /**
-   * 操作neo4j数据库
+   * 创建 driver
    */
   async create() {
     var driver = neo4j.driver( this.getConfig().neo4j_client.url, 
@@ -35,6 +36,9 @@ export class Neo4jService extends BaseService {
     return driver;
   }
 
+  /**
+   * 运行 neo4j
+   */
   async run(content) {
     console.log(content);
     
@@ -45,27 +49,47 @@ export class Neo4jService extends BaseService {
     return result;
   }
 
+  /**
+   * 初始化数据库
+   * - 建立索引和约束
+   * - 建立 graph
+   */
+
   async init() {
     /*
     await this.run(`
-      CREATE CONSTRAINT ON (a:User) ASSERT a.id IS UNIQUE
+      CREATE CONSTRAINT ON (a:User) ASSERT a.uid IS UNIQUE
       CREATE INDEX FOR (n:User) ON (n.address)
+      CALL gds.graph.create(${Graph}, 'User', 'TRUST');
     `)
     */
   }
 
+  /**
+   * 使用 apoc 批量建立节点
+   * 需要安装 apoc
+   */
   async createNodes(nodes) {
     await this.run(`
       CALL apoc.create.nodes(['User'],${inspect(nodes)}) yield node
     `);
   }
 
+  /**
+   * 创建一个节点
+   * node: {id:1, address: '0x0000000000...'}
+   */
   async createNode(node) {
     await this.run(`
       MERGE (n:User ${inspect(node)})
     `);
   }
 
+  /**
+   * 使用 apoc 批量建立关系
+   * 需要安装 apoc
+   * rels: [{trusted: 1, trustee, 2},{...}]
+   */
   async createRels(rels) {
     await this.run(`
       UNWIND ${inspect(rels)} as rowd
@@ -77,6 +101,10 @@ export class Neo4jService extends BaseService {
   `)
   }
 
+  /**
+   * 建立关系
+   * rel: {trusted: 1, trustee, 2}
+   */
   async createRel(rel) {
     await this.run(`
       MATCH (p:User {uid: ${rel.trusted}})
@@ -85,6 +113,11 @@ export class Neo4jService extends BaseService {
   `)
   }
 
+  /**
+   * 使用 apoc 批量删除关系
+   * 需要安装 apoc
+   * rels: [{trusted: 1, trustee, 2},{...}]
+   */
   async delRels(rels) {
     await this.run(`
       UNWIND ${inspect(rels)} as row
@@ -93,6 +126,10 @@ export class Neo4jService extends BaseService {
     `)
   }
 
+  /**
+   * 删除关系
+   * rel: {trusted: 1, trustee, 2}
+   */
   async delRel(rel) {
     await this.run(`
       MATCH (n {uid: ${rel.trusted}})-[r:TRUST]->(m {uid: ${rel.trustee}})
@@ -100,6 +137,9 @@ export class Neo4jService extends BaseService {
   `)
   }
 
+  /**
+   * 计算 Graph 的 Betweenness
+   */
   async betweenness() {
     return this.run(`
       CALL gds.betweenness.stream(${Graph})
@@ -110,6 +150,9 @@ export class Neo4jService extends BaseService {
     `)
   }
 
+  /**
+   * 计算 Graph 的 ArticleRank
+   */
   async articleRank() {
     return this.run(`
     CALL gds.alpha.articleRank.stream({
@@ -125,6 +168,9 @@ export class Neo4jService extends BaseService {
     `)
   }
 
+  /**
+   * 计算 Graph 的 PageRank
+   */
   async pageRank() {
     return this.run(`
     CALL gds.pageRank.stream(${Graph},{
@@ -138,6 +184,9 @@ export class Neo4jService extends BaseService {
     `)
   }
 
+  /**
+   * 计算 Graph 的 Closeness Centrality
+   */
   async closeness() {
     return this.run(`
     CALL gds.alpha.closeness.stream({
@@ -151,6 +200,9 @@ export class Neo4jService extends BaseService {
     `)
   }
 
+  /**
+   * 计算 Graph 的 Harmonic Centrality
+   */
   async harmonic() {
     return this.run(`
     CALL gds.alpha.closeness.harmonic.stream({
@@ -164,6 +216,9 @@ export class Neo4jService extends BaseService {
     `)
   }
 
+  /**
+   * 计算 Graph 的 Eigenvector Centrality
+   */
   async eigenvector() {
     return this.run(`
     CALL gds.alpha.eigenvector.stream({
@@ -177,6 +232,9 @@ export class Neo4jService extends BaseService {
     `)
   }
 
+  /**
+   * 计算 Graph 的 Degree Centrality
+   */
   async degree() {
     return this.run(`
     CALL gds.alpha.degree.stream({

@@ -11,6 +11,10 @@ export class CirclesSysInfoEntity extends BaseEntity {
   @Column()
   nonce: number;
 
+  // 状态 -1：失败 0: 计算中 1：已完成
+  @Column({ default: 1, type: 'tinyint' })
+  status: number;
+
   @Column({ default: 1000 })
   seed_score: number;
 
@@ -23,4 +27,9 @@ export class CirclesSysInfoEntity extends BaseEntity {
   @Column({ nullable: true })
   trust_count: number;
 
+  @Column({ type:'float', nullable: true })
+  damping_factor: number;
+
+  @Column({ nullable: true })
+  min_divisor: number;
 }

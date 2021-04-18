@@ -13,7 +13,7 @@ import * as _ from 'lodash';
 var async = require('async');
 
 /**
- * 商品
+ * 获取信任关系和用户数据
  */
 @Provide()
 export class CirclesTrustService extends BaseService {
