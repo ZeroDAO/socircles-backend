@@ -8,8 +8,3 @@ export default {
     package: 'egg-view-nunjucks',
   },
 } as EggPlugin;
-
-exports.neo4j = {
-  enable: true,
-  package: 'egg-neo4j',
-};

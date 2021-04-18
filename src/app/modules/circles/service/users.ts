@@ -34,26 +34,7 @@ export class CirclesUsersService extends BaseService {
    * 返回用户数据
    */
    async user() {
-    // 每次最多查询100条，然后不管了0
-    // const { account_name,offset,pos } = q;
-    const url = this.getConfig().thegraph_url;
-    let blockData = await this.ctx.curl(url, {
-      method: 'POST',
-      contentType: 'json',
-      data: {"query":`{trustChanges(first: 1000, where: { id_gt: "12543557-1" }) {id,canSendTo,user,limitPercentage}`,"variables":{}},
-      dataType: 'json'
-    })
-    // 从信任改变记录获取最新数值
-    // 是否为信任或取消信任
-    // 查看更新blocknum ，小于则报错，并全部停止！输出log ! 删除全部已更新
-    // 双方用户是否存在，不存在则查找用户，存储用户，更新neo4j
-    // 更新信任关系 更新neo4j
-    // 存储信任改变记录
-    
-    // 建立neo
-    return {
-      blockData: blockData.data
-    };
+
    }
   
 }

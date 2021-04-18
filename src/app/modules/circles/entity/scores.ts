@@ -23,7 +23,19 @@ import { Column, Index } from 'typeorm';
  
    @Column({ type: 'float', default: 0 })
    degree: number;
+
+   @Column({ type: 'float', default: 0 })
+   eigenvector: number;
+
+   @Column({ type: 'float', default: 0 })
+   harmonic: number;
+
+   @Column({ type: 'float', default: 0 })
+   articleRank: number;
+
+   @Column({ type: 'float', default: 0 })
+   closeness: number;
  
-   @Column({ default: 0 })
-   reputation_score: number;
+   @Column({ type: 'float', default: 0 })
+   reputation: number;
  }

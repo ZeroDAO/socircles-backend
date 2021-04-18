@@ -7,6 +7,7 @@ import { CirclesTrustChangesEntity } from '../entity/trust_changes';
 import { CirclesUsersEntity } from '../entity/users';
 import { ICoolCache } from 'midwayjs-cool-core';
 import { Context } from 'egg';
+import { Neo4jService } from './neo4j';
 import * as _ from 'lodash';
 
 var async = require('async');
@@ -25,6 +26,9 @@ export class CirclesTrustService extends BaseService {
   @InjectEntityModel(CirclesUsersEntity)
   circlesUsersEntity: Repository<CirclesUsersEntity>;
 
+  @Inject()
+  neo4j: Neo4jService;
+
   @Inject('cool:cache')
   coolCache: ICoolCache;
 
@@ -40,12 +44,17 @@ export class CirclesTrustService extends BaseService {
   /**
    * 返回用户数据
    */
-   async getTrust() {
+   async getTrust(init = false) {
     const url = this.getConfig().thegraph_url;
     let trustChange = await this.circlesTrustChangesEntity.createQueryBuilder()
       .addOrderBy('id', 'DESC')
       .getOne();
     let op = _.isEmpty(trustChange) ? '' : `, where: { id_gt: "${trustChange.c_t_id}" }`;
+
+    // 初始化数据库，建立索引和约束
+    if (init) {
+      await this.neo4j.init();
+    }
     
     let circlesData = await this.ctx.curl(url, {
       method: 'POST',
@@ -53,49 +62,73 @@ export class CirclesTrustService extends BaseService {
       data: {"query":`{trustChanges(first: 1000 ${op}) {id,canSendTo,user,limitPercentage}}`,"variables":{}},
       dataType: 'json'
     })
-
-    // 同步执行，否则可能导致trust关系错误
     async.forEachSeries( circlesData.data.data.trustChanges, async (t, callback) => {
       let trusted = await this.findOrAddUsers(t.canSendTo);
       let trustee = await this.findOrAddUsers(t.user);
+      if (trusted.isNew) {
+        this.neo4j.createNode({
+          uid: trusted.id,
+          address: t.canSendTo
+        })
+      }
+      if (trustee.isNew) {
+        this.neo4j.createNode({
+          uid: trustee.id,
+          address: t.user
+        })
+      }
       if (t.canSendTo != t.user) {
-        let trust = await this.circlesTrustEntity.findOne({trusted: t.canSendTo, trustee: t.user });
+        let trust = await this.circlesTrustEntity.findOne({ trusted: t.canSendTo, trustee: t.user });
         if (t.limitPercentage == '0') {
-          await this.circlesTrustEntity.delete(trust);
-          // 更新用户到neo4j
+          if (!_.isEmpty(trust)) {
+            await this.neo4j.delRel({
+              trusted: trusted.id,
+              trustee: trustee.id,
+            })
+            await this.circlesTrustEntity.delete(trust.id);
+          }
         } else {
           if (_.isEmpty(trust)) {
-            await this.circlesTrustEntity.save({
-              trusted: trusted,
-              trustee: trustee
-            });
+            let crateData = {
+              trusted: trusted.id,
+              trustee: trustee.id
+            }
+            await this.neo4j.createRel({
+              trusted: trusted.id,
+              trustee: trustee.id,
+            })
+            await this.circlesTrustEntity.save(crateData);
           }
-          // 更新用户到neo4j
         }
       }
       await this.circlesTrustChangesEntity.save({
-        trustee: trustee,
-        trusted: trusted,
+        trustee: trustee.id,
+        trusted: trusted.id,
         limit_percentage: t.limitPercentage,
         c_t_id: t.id,
       })
       callback(null);
-    }, function(err) {
+    }, function(err) {          
       return err;
     });
-
-    return trustChange.id;
    }
 
    async findOrAddUsers(address) {
      let user = await this.circlesUsersEntity.findOne({ address: address });
-     if (_.isEmpty(user)) {
+     let isNew = _.isEmpty(user)
+     if (isNew) {
        user = await this.circlesUsersEntity.save({
          address: address
        })
-       // 更新用户到neo4j
      }
-     return user.id;
+     return {
+      id: user.id,
+      isNew: isNew
+     };
+   }
+
+   async test() {
+    return this.neo4j.run('RETURN timestamp()');
    }
   
 }

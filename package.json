@@ -22,6 +22,7 @@
     "midwayjs-cool-redis": "^1.1.0",
     "midwayjs-cool-wxpay": "^1.0.12",
     "mysql2": "^2.2.5",
+    "neo4j-driver": "^4.2.3",
     "svg-captcha": "^1.4.0",
     "svg-to-dataurl": "^1.0.0"
   },

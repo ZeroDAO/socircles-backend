@@ -33,6 +33,15 @@ export class CirclesAppUsersController extends BaseController {
    async getuser() {
      return this.ok(await this.circlesUsersService.user());
    }
+
+  /**
+   * 请求用户数据
+   * @returns
+   */
+   @Get('/test')
+   async test() {
+     return this.ok(await this.circlesTrustService.test());
+   }
   
   /**
    * 请求用户数据
