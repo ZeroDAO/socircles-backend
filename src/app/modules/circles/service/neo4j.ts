@@ -1,5 +1,5 @@
 import { Inject, Provide } from '@midwayjs/decorator';
-import { BaseService } from 'midwayjs-cool-core';
+import { BaseService, CoolCommException } from 'midwayjs-cool-core';
 import { Context } from 'egg';
 import neo4j from 'neo4j-driver';
 
@@ -34,6 +34,15 @@ export class Neo4jService extends BaseService {
     // const result = await session.run('RETURN timestamp()');
     // await driver.close()
     return driver;
+  }
+
+  /**
+   * 创建 Graph
+   */
+  async createGraph() {
+    this.run(`
+    CALL gds.graph.create(${Graph}, 'User', 'TRUST');
+    `)
   }
 
   /**
@@ -98,7 +107,7 @@ export class Neo4jService extends BaseService {
       CALL apoc.create.relationship(p, "TRUST", {}, m)
       YIELD rel
       RETURN count(*)
-  `)
+    `)
   }
 
   /**
@@ -110,7 +119,7 @@ export class Neo4jService extends BaseService {
       MATCH (p:User {uid: ${rel.trusted}})
       MATCH (m:User {uid: ${rel.trustee}})
       MERGE (p)-[r:TRUST]->(m)
-  `)
+    `)
   }
 
   /**
@@ -134,7 +143,7 @@ export class Neo4jService extends BaseService {
     await this.run(`
       MATCH (n {uid: ${rel.trusted}})-[r:TRUST]->(m {uid: ${rel.trustee}})
       DELETE r
-  `)
+    `)
   }
 
   /**
@@ -147,6 +156,17 @@ export class Neo4jService extends BaseService {
       WHERE score > 0
       RETURN gds.util.asNode(nodeId).uid AS uid, score
       ORDER BY score DESC
+    `)
+  }
+
+  /**
+   * 计算 Graph 的 Betweenness 并写入
+   */
+   async betweennessWrite() {
+    return this.run(`
+    CALL gds.betweenness.write(${Graph}, { writeProperty: 'betweenness' })
+    YIELD centralityDistribution
+    RETURN centralityDistribution
     `)
   }
 
@@ -169,7 +189,7 @@ export class Neo4jService extends BaseService {
   }
 
   /**
-   * 计算 Graph 的 PageRank
+   * 计算 Graph 的 PageRank 并返回大于0的值
    */
   async pageRank() {
     return this.run(`
@@ -181,6 +201,22 @@ export class Neo4jService extends BaseService {
     WHERE score > 0
     RETURN gds.util.asNode(nodeId).name AS name, score
     ORDER BY score DESC
+    `)
+  }
+
+
+  /**
+   * 计算PR并写入neo4j的节点属性
+   */
+  async pageRankWrite() {
+    return this.run(`
+    CALL gds.pageRank.write(${Graph}, {
+      maxIterations: 20,
+      dampingFactor: 0.85,
+      writeProperty: 'pagerank'
+    })
+    YIELD centralityDistribution
+    RETURN centralityDistribution
     `)
   }
 
@@ -251,5 +287,31 @@ export class Neo4jService extends BaseService {
     RETURN gds.util.asNode(nodeId).uid AS uid, score
     ORDER BY score DESC
     `)
+  }
+
+  async gdsAlphaWrite(t, r = 'Trust') {
+    if (['degree','eigenvector','closeness','articleRank'].indexOf(t) < 0) {
+      throw new CoolCommException('不受支持的算法');
+    }
+    return this.run(`
+    CALL gds.alpha.${this.getTails(t,r)}
+    `)
+  }
+
+  async gdsClosenessWrite(t, r = 'Trust') {
+    if (['harmonic'].indexOf(t) < 0) {
+      throw new CoolCommException('不受支持的算法');
+    }
+    return this.run(`
+    CALL gds.alpha.closeness.${this.getTails(t,r)}
+    `)
+  }
+
+  getTails(t,r) {
+    return `${t}.write({
+      nodeProjection: 'User',
+      relationshipProjection: ${r},
+      writeProperty: '${t}'
+    }) YIELD centralityDistribution`
   }
 }

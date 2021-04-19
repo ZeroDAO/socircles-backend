@@ -16,26 +16,5 @@ import { Column, Index } from 'typeorm';
    nonce: number;
  
    @Column({ type: 'float', default: 0 })
-   betweenness: number;
- 
-   @Column({ type: 'float', default: 0 })
-   page_rank: number;
- 
-   @Column({ type: 'float', default: 0 })
-   degree: number;
-
-   @Column({ type: 'float', default: 0 })
-   eigenvector: number;
-
-   @Column({ type: 'float', default: 0 })
-   harmonic: number;
-
-   @Column({ type: 'float', default: 0 })
-   articleRank: number;
-
-   @Column({ type: 'float', default: 0 })
-   closeness: number;
- 
-   @Column({ type: 'float', default: 0 })
    reputation: number;
  }

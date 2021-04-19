@@ -108,7 +108,8 @@ export class CirclesTrustService extends BaseService {
         c_t_id: t.id,
       })
       callback(null);
-    }, function(err) {          
+    }, function(err) {
+      // 全部完成后，如果尚有数据，则新增任务         
       return err;
     });
    }
@@ -128,7 +129,7 @@ export class CirclesTrustService extends BaseService {
    }
 
    async test() {
-    return this.neo4j.run('RETURN timestamp()');
+    return await this.neo4j.articleRank();
    }
   
 }

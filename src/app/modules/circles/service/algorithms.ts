@@ -35,11 +35,12 @@ export class CirclesAlgorithmsService extends BaseService {
    * 开始新的一轮计算
    */
    async start(seed_count = 20, seed_score = 1000, damping_factor = 0.85, min_divisor = 20) {
+    // TODO: 把配置信息放到缓存
     let sys_info = await this.circlesSysInfoEntity.createQueryBuilder()
       .addOrderBy('id', 'DESC')
       .getOne();
     if (sys_info.status < 1) {
-      throw new CoolCommException('计算中无法开始新的一轮！');
+      throw new CoolCommException('正在计算中，无法开始新的一轮！');
     }
     let newRound = await this.circlesSysInfoEntity.save({
       status: 0,
@@ -49,6 +50,7 @@ export class CirclesAlgorithmsService extends BaseService {
       damping_factor,
       min_divisor
     });
+
     return newRound.id;
    }
 }
