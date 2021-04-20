@@ -1,3 +1,5 @@
+## 介绍
+
 校验 socoin 的声誉系统算法，采用 circles 用户数据和关系数据，最为对照组计算 `Betweenness` , `ArticleRank` , `PageRank` , `Closeness` , `Harmonic Centrality` , `Eigenvector Centrality` , `Degree Centrality` , 统计迭代过程中各种算法的百分比分布等数据。
 
 ## 实现
@@ -13,15 +15,19 @@
 ## 技术栈
 
 * 数据库：**`neo4j` `mysql`**
-* 后端：**`node.js` `midway.js` `egg.js` `typescript` `neo4j` `cool-admin`**
+* 后端：**`node.js` `midway.js` `egg.js` `typescript` `cool-admin`**
 
 ## 运行
 
-#### 安装 `neo4j` (`2.2.x版本`)
+#### 安装 `neo4j` (2.2.x版本)
 
-- 下载并安装 [`neo4j community server`](https://neo4j.com/download-center/#community) 社区版;
-- 安装插件 `graph-data-science` `APOC` ，注意安装对应版本;
-- 配置插件；
+安装 [`neo4j community server`](https://neo4j.com/download-center/#community) 社区版;
+
+#### 安装 `neo4j` 插件
+
+安装插件 `graph-data-science` `APOC` ，注意安装对应版本;
+
+#### 配置 `neo4j` 插件
 
 `neo4j/conf/neo4j.conf` 尾部添加：
 
@@ -41,6 +47,7 @@ apoc.export.file.enabled=true
 配置文件位于`src/config/config.local.ts`
 
 `mysql` 
+
 `>=5.7版本`，node版本(`>=12.x`)，首次启动会自动初始化并导入数据
 
 ```js
@@ -91,5 +98,5 @@ $ npm stop
 - 使用 `npm test` 来执行单元测试。
 
 
-[midway]: https://midwayjs.org
-[cool-admin]: https://www.cool-js.com
+[midway](https://midwayjs.org)
+[cool-admin](https://www.cool-js.com)
