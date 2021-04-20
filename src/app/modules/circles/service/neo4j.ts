@@ -314,4 +314,32 @@ export class Neo4jService extends BaseService {
       writeProperty: '${t}'
     }) YIELD centralityDistribution`
   }
+
+  async getSeedsPath(uid) {
+    return this.run(`
+    WITH "MATCH (source:User {uid: ${uid}})
+      CALL gds.beta.allShortestPaths.dijkstra.stream(${Graph}, {
+        sourceNode: id(source)
+      })
+      YIELD sourceNode, targetNode, totalCost, nodeIds, costs
+      WHERE size(nodeIds) < 6
+    RETURN
+      gds.util.asNode(sourceNode).uid AS sid,
+      gds.util.asNode(targetNode).uid AS tid,
+      [nodeId IN nodeIds | gds.util.asNode(nodeId).uid] AS nids,
+      costs" AS query
+    CALL apoc.export.csv.query(query, "seed_path_${uid}", {})
+    YIELD file, source,nodes, relationships, time, rows, batchSize, batches, done, data
+    RETURN file, source,nodes, relationships, time, rows, batchSize, batches, done, data;
+    `)
+  }
+
+  async getSeeds(count) {
+    return this.run(`
+      MATCH (n:User)
+      RETURN n.uid
+      ORDER BY n.closeness DESC
+      LIMIT ${count}
+    `)
+  }
 }

@@ -8,10 +8,9 @@ import { Column, Index } from 'typeorm';
 @EntityModel('circles_seeds')
 export class CirclesSeedsEntity extends BaseEntity {
   @Index()
-  @Column({ comment: 'user id', type: 'bigint'})
-  uid: number;
+  @Column()
+  nonce: number;
 
-  // 状态 -1：删除 0: 禁用 1：正常
   @Column({ default: 1, type: 'tinyint' })
-  status: number;
+  seeds: number;
 }
