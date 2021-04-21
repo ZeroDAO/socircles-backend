@@ -10,7 +10,7 @@ export class CirclesSeedsEntity extends BaseEntity {
   // target uid
   @Index()
   @Column({ comment: 'user id', type: 'bigint'})
-  target: number;
+  tid: number;
 
   // seed uid
   @Index()
@@ -19,7 +19,7 @@ export class CirclesSeedsEntity extends BaseEntity {
 
   // node uids
   @Column()
-  nodes: string;
+  nids: string;
 
   @Column()
   costs: string;

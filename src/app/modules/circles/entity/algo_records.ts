@@ -5,8 +5,11 @@ import { Column } from 'typeorm';
 /**
  * 种子用户
  */
-@EntityModel('circles_seeds')
-export class CirclesSeedsEntity extends BaseEntity {
+@EntityModel('circles_algo_records')
+export class CirclesAlgoRecordsEntity extends BaseEntity {
   @Column()
-  seeds: string;
+  work_id: number;
+
+  @Column()
+  pace: string;
 }

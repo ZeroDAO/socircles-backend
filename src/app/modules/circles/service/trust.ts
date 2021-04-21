@@ -4,13 +4,18 @@ import { InjectEntityModel } from '@midwayjs/orm';
 import { Repository } from 'typeorm';
 import { CirclesTrustEntity } from '../entity/trust';
 import { CirclesTrustChangesEntity } from '../entity/trust_changes';
+import { CirclesTrustCountEntity } from '../entity/trust_count';
 import { CirclesUsersEntity } from '../entity/users';
+import { CirclesPathEntity } from '../entity/path';
 import { ICoolCache } from 'midwayjs-cool-core';
 import { Context } from 'egg';
 import { Neo4jService } from './neo4j';
+// import * as redis from 'midwayjs-cool-redis';
 import * as _ from 'lodash';
 
 var async = require('async');
+
+const USER_LIST_KEY = "scuserlist"
 
 /**
  * 获取信任关系和用户数据
@@ -26,6 +31,12 @@ export class CirclesTrustService extends BaseService {
   @InjectEntityModel(CirclesUsersEntity)
   circlesUsersEntity: Repository<CirclesUsersEntity>;
 
+  @InjectEntityModel(CirclesTrustCountEntity)
+  circlesTrustCountEntity: Repository<CirclesTrustCountEntity>;
+
+  @InjectEntityModel(CirclesPathEntity)
+  path: Repository<CirclesPathEntity>;
+  
   @Inject()
   neo4j: Neo4jService;
 
@@ -44,7 +55,7 @@ export class CirclesTrustService extends BaseService {
   /**
    * 返回用户数据
    */
-   async getTrust(init = false) {
+  async getTrust(init = false) {
     const url = this.getConfig().thegraph_url;
     let trustChange = await this.circlesTrustChangesEntity.createQueryBuilder()
       .addOrderBy('id', 'DESC')
@@ -55,14 +66,14 @@ export class CirclesTrustService extends BaseService {
     if (init) {
       await this.neo4j.init();
     }
-    
+
     let circlesData = await this.ctx.curl(url, {
       method: 'POST',
       contentType: 'json',
-      data: {"query":`{trustChanges(first: 1000 ${op}) {id,canSendTo,user,limitPercentage}}`,"variables":{}},
+      data: { "query": `{trustChanges(first: 1000 ${op}) {id,canSendTo,user,limitPercentage}}`, "variables": {} },
       dataType: 'json'
     })
-    async.forEachSeries( circlesData.data.data.trustChanges, async (t, callback) => {
+    async.forEachSeries(circlesData.data.data.trustChanges, async (t, callback) => {
       let trusted = await this.findOrAddUsers(t.canSendTo);
       let trustee = await this.findOrAddUsers(t.user);
       if (trusted.isNew) {
@@ -79,6 +90,7 @@ export class CirclesTrustService extends BaseService {
       }
       if (t.canSendTo != t.user) {
         let trust = await this.circlesTrustEntity.findOne({ trusted: t.canSendTo, trustee: t.user });
+        let trustCount = await this.circlesTrustCountEntity.findOne(trusted);
         if (t.limitPercentage == '0') {
           if (!_.isEmpty(trust)) {
             await this.neo4j.delRel({
@@ -86,6 +98,8 @@ export class CirclesTrustService extends BaseService {
               trustee: trustee.id,
             })
             await this.circlesTrustEntity.delete(trust.id);
+            // 减少关注人数
+            await this.circlesTrustCountEntity.save({ id: trusted, count: trustCount - 1 });
           }
         } else {
           if (_.isEmpty(trust)) {
@@ -98,6 +112,11 @@ export class CirclesTrustService extends BaseService {
               trustee: trustee.id,
             })
             await this.circlesTrustEntity.save(crateData);
+            // 增加关注人数
+            await this.circlesTrustCountEntity.save({
+              id: trusted,
+              count: _.isEmpty(trustCount) ? 1 : trustCount + 1
+            });
           }
         }
       }
@@ -108,28 +127,47 @@ export class CirclesTrustService extends BaseService {
         c_t_id: t.id,
       })
       callback(null);
-    }, function(err) {
+    }, function (err) {
       // 全部完成后，如果尚有数据，则新增任务         
       return err;
     });
-   }
+  }
 
-   async findOrAddUsers(address) {
-     let user = await this.circlesUsersEntity.findOne({ address: address });
-     let isNew = _.isEmpty(user)
-     if (isNew) {
-       user = await this.circlesUsersEntity.save({
-         address: address
-       })
-     }
-     return {
+  /**
+   * 将所有需更新用户推入 redis
+   */
+  async setAlgoUserList() {
+    const redis = this.coolCache.getMetaCache();
+    // 压入数据前先清空
+    await redis.del(USER_LIST_KEY);
+    let userList = await this.nativeQuery(`select DISTINCT tid from circles_path`);
+    return await redis.lpush(USER_LIST_KEY,userList);
+  }
+
+  /**
+   * 从用户列表中获取 LRANGE KEY_NAME START END
+   */
+   async getAlgoUserList(start,end) {
+    const redis = this.coolCache.getMetaCache();
+    return await redis.lrange(USER_LIST_KEY,start,end);
+  }
+
+  async findOrAddUsers(address) {
+    let user = await this.circlesUsersEntity.findOne({ address: address });
+    let isNew = _.isEmpty(user)
+    if (isNew) {
+      user = await this.circlesUsersEntity.save({
+        address: address
+      })
+    }
+    return {
       id: user.id,
       isNew: isNew
-     };
-   }
+    };
+  }
 
-   async test() {
+  async test() {
     return await this.neo4j.articleRank();
-   }
-  
+  }
+
 }

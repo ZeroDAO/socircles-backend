@@ -3,10 +3,10 @@ import { BaseEntity } from 'midwayjs-cool-core';
 import { Column } from 'typeorm';
 
 /**
- * 种子用户
+ * 信任关系
  */
-@EntityModel('circles_seeds')
-export class CirclesSeedsEntity extends BaseEntity {
+@EntityModel('circles_trust')
+export class CirclesTrustCountEntity extends BaseEntity {
   @Column()
-  seeds: string;
+  count: number;
 }

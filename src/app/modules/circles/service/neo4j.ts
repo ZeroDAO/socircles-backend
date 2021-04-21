@@ -7,7 +7,7 @@ const { inspect } = require('util');
 const Graph = 'trustGraph';
 
 /**
- * neo4j 数据库接口
+ * neo4j 接口
  */
 @Provide()
 export class Neo4jService extends BaseService {
@@ -318,7 +318,7 @@ export class Neo4jService extends BaseService {
   async getSeedsPath(uid) {
     return this.run(`
     WITH "MATCH (source:User {uid: ${uid}})
-      CALL gds.beta.allShortestPaths.dijkstra.stream(${Graph}, {
+      CALL gds.beta.allShortestPaths.dijkstra.stream('${Graph}', {
         sourceNode: id(source)
       })
       YIELD sourceNode, targetNode, totalCost, nodeIds, costs
@@ -328,7 +328,7 @@ export class Neo4jService extends BaseService {
       gds.util.asNode(targetNode).uid AS tid,
       [nodeId IN nodeIds | gds.util.asNode(nodeId).uid] AS nids,
       costs" AS query
-    CALL apoc.export.csv.query(query, "seed_path_${uid}", {})
+    CALL apoc.export.csv.query(query, "seed_path_${uid}.csv", {})
     YIELD file, source,nodes, relationships, time, rows, batchSize, batches, done, data
     RETURN file, source,nodes, relationships, time, rows, batchSize, batches, done, data;
     `)

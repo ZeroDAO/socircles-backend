@@ -24,6 +24,7 @@ export default (appInfo: EggAppInfo) => {
     synchronize: true,
     // 打印日志
     logging: true,
+    neo4jDir: 'D:/neo4j/'
   };
 
   config.logger = {
