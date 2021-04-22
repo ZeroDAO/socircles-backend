@@ -6,7 +6,6 @@ import { CirclesTrustEntity } from '../entity/trust';
 import { CirclesTrustChangesEntity } from '../entity/trust_changes';
 import { CirclesTrustCountEntity } from '../entity/trust_count';
 import { CirclesUsersEntity } from '../entity/users';
-import { CirclesPathEntity } from '../entity/path';
 import { ICoolCache } from 'midwayjs-cool-core';
 import { Context } from 'egg';
 import { Neo4jService } from './neo4j';
@@ -14,8 +13,6 @@ import { Neo4jService } from './neo4j';
 import * as _ from 'lodash';
 
 var async = require('async');
-
-const USER_LIST_KEY = "scuserlist"
 
 /**
  * 获取信任关系和用户数据
@@ -33,9 +30,6 @@ export class CirclesTrustService extends BaseService {
 
   @InjectEntityModel(CirclesTrustCountEntity)
   circlesTrustCountEntity: Repository<CirclesTrustCountEntity>;
-
-  @InjectEntityModel(CirclesPathEntity)
-  path: Repository<CirclesPathEntity>;
   
   @Inject()
   neo4j: Neo4jService;
@@ -131,25 +125,6 @@ export class CirclesTrustService extends BaseService {
       // 全部完成后，如果尚有数据，则新增任务         
       return err;
     });
-  }
-
-  /**
-   * 将所有需更新用户推入 redis
-   */
-  async setAlgoUserList() {
-    const redis = this.coolCache.getMetaCache();
-    // 压入数据前先清空
-    await redis.del(USER_LIST_KEY);
-    let userList = await this.nativeQuery(`select DISTINCT tid from circles_path`);
-    return await redis.lpush(USER_LIST_KEY,userList);
-  }
-
-  /**
-   * 从用户列表中获取 LRANGE KEY_NAME START END
-   */
-   async getAlgoUserList(start,end) {
-    const redis = this.coolCache.getMetaCache();
-    return await redis.lrange(USER_LIST_KEY,start,end);
   }
 
   async findOrAddUsers(address) {

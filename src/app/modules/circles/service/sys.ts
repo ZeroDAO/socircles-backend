@@ -23,13 +23,13 @@ export class CirclesSysService extends BaseService {
   }
 
   /**
-   * 返回所有数据
+   * 当前系统状态
    */
   @Cache(5)
   async info() {
     let info = await this.circlesSysInfoEntity.createQueryBuilder()
-    .addOrderBy('id', 'DESC')
-    .getOne();
+      .addOrderBy('id', 'DESC')
+      .getOne();
     return info;
   }
 }

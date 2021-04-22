@@ -24,7 +24,7 @@ export class Neo4jService extends BaseService {
    * 创建 driver
    */
   async create() {
-    var driver = neo4j.driver( this.getConfig().neo4j_client.url, 
+    var driver = neo4j.driver(this.getConfig().neo4j_client.url,
       neo4j.auth.basic(
         this.getConfig().neo4j_client.username,
         this.getConfig().neo4j_client.password
@@ -41,7 +41,7 @@ export class Neo4jService extends BaseService {
    */
   async createGraph() {
     this.run(`
-    CALL gds.graph.create(${Graph}, 'User', 'TRUST');
+    CALL gds.graph.create('${Graph}', 'User', 'TRUST');
     `)
   }
 
@@ -50,7 +50,7 @@ export class Neo4jService extends BaseService {
    */
   async run(content) {
     console.log(content);
-    
+
     const driver = await this.create();
     var session = driver.session();
     const result = await session.run(content);
@@ -69,14 +69,14 @@ export class Neo4jService extends BaseService {
     await this.run(`
       CREATE CONSTRAINT ON (a:User) ASSERT a.uid IS UNIQUE
       CREATE INDEX FOR (n:User) ON (n.address)
-      CALL gds.graph.create(${Graph}, 'User', 'TRUST');
+      CALL gds.graph.create('${Graph}', 'User', 'TRUST');
     `)
     */
   }
 
   /**
    * 使用 apoc 批量建立节点
-   * 需要安装 apoc
+   *@param node: [{"id":1, "address": '0x0000000000...'},{id:1,address:''},{...}]
    */
   async createNodes(nodes) {
     await this.run(`
@@ -86,7 +86,7 @@ export class Neo4jService extends BaseService {
 
   /**
    * 创建一个节点
-   * node: {id:1, address: '0x0000000000...'}
+   *@param node: {id:1, address: '0x0000000000...'}
    */
   async createNode(node) {
     await this.run(`
@@ -97,7 +97,7 @@ export class Neo4jService extends BaseService {
   /**
    * 使用 apoc 批量建立关系
    * 需要安装 apoc
-   * rels: [{trusted: 1, trustee, 2},{...}]
+   *@param rels : [{trusted: 1, trustee, 2},{...}]
    */
   async createRels(rels) {
     await this.run(`
@@ -112,7 +112,7 @@ export class Neo4jService extends BaseService {
 
   /**
    * 建立关系
-   * rel: {trusted: 1, trustee, 2}
+   * @param rel: {trusted: 1, trustee, 2}
    */
   async createRel(rel) {
     await this.run(`
@@ -125,7 +125,7 @@ export class Neo4jService extends BaseService {
   /**
    * 使用 apoc 批量删除关系
    * 需要安装 apoc
-   * rels: [{trusted: 1, trustee, 2},{...}]
+   * @param rels: [{trusted: 1, trustee, 2},{...}]
    */
   async delRels(rels) {
     await this.run(`
@@ -137,7 +137,7 @@ export class Neo4jService extends BaseService {
 
   /**
    * 删除关系
-   * rel: {trusted: 1, trustee, 2}
+   *@param rel: {trusted: 1, trustee, 2}
    */
   async delRel(rel) {
     await this.run(`
@@ -151,7 +151,7 @@ export class Neo4jService extends BaseService {
    */
   async betweenness() {
     return this.run(`
-      CALL gds.betweenness.stream(${Graph})
+      CALL gds.betweenness.stream('${Graph}')
       YIELD nodeId, score
       WHERE score > 0
       RETURN gds.util.asNode(nodeId).uid AS uid, score
@@ -162,9 +162,9 @@ export class Neo4jService extends BaseService {
   /**
    * 计算 Graph 的 Betweenness 并写入
    */
-   async betweennessWrite() {
+  async betweennessWrite() {
     return this.run(`
-    CALL gds.betweenness.write(${Graph}, { writeProperty: 'betweenness' })
+    CALL gds.betweenness.write('${Graph}', { writeProperty: 'betweenness' })
     YIELD centralityDistribution
     RETURN centralityDistribution
     `)
@@ -193,7 +193,7 @@ export class Neo4jService extends BaseService {
    */
   async pageRank() {
     return this.run(`
-    CALL gds.pageRank.stream(${Graph},{
+    CALL gds.pageRank.stream('${Graph}',{
       maxIterations: 20,
       dampingFactor: 0.05
     })
@@ -210,7 +210,7 @@ export class Neo4jService extends BaseService {
    */
   async pageRankWrite() {
     return this.run(`
-    CALL gds.pageRank.write(${Graph}, {
+    CALL gds.pageRank.write('${Graph}', {
       maxIterations: 20,
       dampingFactor: 0.85,
       writeProperty: 'pagerank'
@@ -289,33 +289,51 @@ export class Neo4jService extends BaseService {
     `)
   }
 
-  async gdsAlphaWrite(t, r = 'Trust') {
-    if (['degree','eigenvector','closeness','articleRank'].indexOf(t) < 0) {
+  /**
+   * Alpha 类的算法写入
+   *@param t:String 关系类型
+   *@param r:指定 relationshipProjection
+   */
+  async gdsAlphaWrite(t, r, ...relationship: any) {
+    if (['degree', 'eigenvector', 'closeness', 'articleRank'].indexOf(t) < 0) {
       throw new CoolCommException('不受支持的算法');
     }
     return this.run(`
-    CALL gds.alpha.${this.getTails(t,r)}
+    CALL gds.alpha.${this.getTails(t, r, relationship)}
     `)
   }
 
-  async gdsClosenessWrite(t, r = 'Trust') {
+  /**
+   * Closeness 分支的算法写入
+   *@param t:String 关系类型
+   *@param r:指定 relationshipProjection
+   */
+  async gdsClosenessWrite(t, r, ...relationship: any) {
     if (['harmonic'].indexOf(t) < 0) {
       throw new CoolCommException('不受支持的算法');
     }
     return this.run(`
-    CALL gds.alpha.closeness.${this.getTails(t,r)}
+    CALL gds.alpha.closeness.${this.getTails(t, r, relationship)}
     `)
   }
 
-  getTails(t,r) {
+  getTails(t, r, relationship = "'TRUST'") {
     return `${t}.write({
       nodeProjection: 'User',
-      relationshipProjection: ${r},
-      writeProperty: '${t}'
+      relationshipProjection: ${relationship},
+      writeProperty: '${t}',
+      ${inspect(r).slice(1,-1)}
     }) YIELD centralityDistribution`
   }
 
-  async getSeedsPath(uid) {
+  /**
+   * 计算某节点到其他所有节点最短路径小于 6 的路径
+   * 将计算数据导出为 cvs ，便于后期导入其他数据库
+   * 或使用其他引擎计算
+   * 返回计算统计
+   *@param uid: 需要计算的用户uid
+   */
+  async seedsPathFile(uid) {
     return this.run(`
     WITH "MATCH (source:User {uid: ${uid}})
       CALL gds.beta.allShortestPaths.dijkstra.stream('${Graph}', {

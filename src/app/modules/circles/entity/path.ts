@@ -6,7 +6,7 @@ import { Column, Index } from 'typeorm';
  * 种子用户
  */
 @EntityModel('circles_path')
-export class CirclesSeedsEntity extends BaseEntity {
+export class CirclesPathEntity extends BaseEntity {
   // target uid
   @Index()
   @Column({ comment: 'user id', type: 'bigint'})

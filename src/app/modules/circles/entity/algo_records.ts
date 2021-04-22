@@ -1,15 +1,44 @@
 import { EntityModel } from '@midwayjs/orm';
 import { BaseEntity } from 'midwayjs-cool-core';
-import { Column } from 'typeorm';
+import { Column, Index } from 'typeorm';
 
 /**
- * 种子用户
+ * 各算法基础指标记录
  */
 @EntityModel('circles_algo_records')
 export class CirclesAlgoRecordsEntity extends BaseEntity {
+  @Index()
   @Column()
-  work_id: number;
+  nonce: number;
 
-  @Column()
-  pace: string;
+  @Index()
+  @Column({ length: '16' })
+  algo: string;
+
+  @Column({ type: 'float', default: 0 })
+  p99: number;
+
+  @Column({ type: 'float', default: 0 })
+  p90: number;
+
+  @Column({ type: 'float', default: 0 })
+  p50: number;
+
+  @Column({ type: 'float', default: 0 })
+  p999: number;
+
+  @Column({ type: 'float', default: 0 })
+  p95: number;
+
+  @Column({ type: 'float', default: 0 })
+  p75: number;
+
+  @Column({ type: 'float', default: 0 })
+  min: number;
+
+  @Column({ type: 'float', default: 0 })
+  max: number;
+
+  @Column({ type: 'float', default: 0 })
+  mean: number;
 }

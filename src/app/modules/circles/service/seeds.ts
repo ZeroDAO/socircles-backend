@@ -27,10 +27,10 @@ export class CirclesSeedsService extends BaseService {
   }
 
   /**
-   * 返回种子用户关注用户信息
+   * 返回种子用户信任数据
    */
   @Cache(5)
-  async seedsInfo() {
+  async info() {
     // 获取seed集合
     let seedSet = await this.seedsEntity
       .createQueryBuilder()
