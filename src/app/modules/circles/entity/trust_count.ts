@@ -5,7 +5,7 @@ import { Column } from 'typeorm';
 /**
  * 信任关系
  */
-@EntityModel('circles_trust')
+@EntityModel('circles_trust_count')
 export class CirclesTrustCountEntity extends BaseEntity {
   @Column()
   count: number;

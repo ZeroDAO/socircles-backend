@@ -1,4 +1,4 @@
-import { Get, Inject, Post, Provide } from '@midwayjs/decorator';
+import { Get, Inject, Post, Provide, Query } from '@midwayjs/decorator';
 import { CoolController, BaseController } from 'midwayjs-cool-core';
 import { IQueue } from 'midwayjs-cool-queue';
 import { CirclesUsersEntity } from '../../entity/users';
@@ -6,6 +6,8 @@ import { CirclesUsersService } from '../../service/users';
 import { CirclesTrustService } from '../../service/trust';
 import { CirclesAlgorithmsService } from '../../service/algorithms';
 import { CirclesSeedsService } from '../../service/seeds';
+import { CirclesTestService } from '../../service/test';
+import { Neo4jService } from '../../service/neo4j';
 
 
 /**
@@ -22,10 +24,18 @@ import { CirclesSeedsService } from '../../service/seeds';
 export class CirclesAppTestController extends BaseController {
   @Inject()
   circlesUsersService: CirclesUsersService;
+
+  @Inject()
+  neo4j: Neo4jService;
+
   @Inject()
   circlesTrustService: CirclesTrustService;
+
   @Inject()
   algo: CirclesAlgorithmsService;
+
+  @Inject()
+  testService: CirclesTestService;
 
   @Inject()
   seeds: CirclesSeedsService;
@@ -40,7 +50,16 @@ export class CirclesAppTestController extends BaseController {
    */
   @Get('/getuser')
   async getuser() {
-    return this.ok(await this.circlesUsersService.user());
+    return this.ok(await this.circlesUsersService.setAlgoUserList());
+  }
+
+  /**
+   * 请求用户数据
+   * @returns
+   */
+  @Get('/trustCount')
+  async trustCount() {
+    return this.ok(await this.testService.trustCount(1, 200));
   }
 
   /**
@@ -56,18 +75,63 @@ export class CirclesAppTestController extends BaseController {
    * 请求用户数据
    * @returns
    */
-  @Get('/importSeedPath')
-  async importSeedPath() {
-    return this.ok(await this.algo.importSeedPath());
-  }
-
-  /**
-   * 请求用户数据
-   * @returns
-   */
   @Post('/cirdata')
   async cirdata() {
     return this.ok(await this.circlesTrustService.getTrust());
+  }
+
+  /**
+   * 运行对照组算法
+   * @returns
+   */
+  @Get('/algoConpared')
+  async algoConpared() {
+    return this.ok(await this.algo.algoConpared('closeness'));
+  }
+
+  /**
+   * 开始新的一轮
+   * @returns
+   */
+  @Get('/start')
+  async start() {
+    return this.ok(await this.algo.start());
+  }
+
+  /**
+   * 设置种子
+   * @returns
+   */
+  @Get('/setSeeds')
+  async setSeeds() {
+    return this.ok(await this.algo.setSeeds());
+  }
+
+  /**
+   * 设置种子
+   * @returns
+   */
+  @Get('/getSeedPath')
+  async getSeedPath(@Query() uid: number) {
+    return this.ok(await this.algo.getSeedPath(uid));
+  }
+
+  /**
+   * 设置种子
+   * @returns
+   */
+  @Get('/importSeedPath')
+  async importSeedPath(@Query() sid: number) {
+    return this.ok(await this.algo.importSeedPath(sid));
+  }
+
+  /**
+   * 设置种子
+   * @returns
+   */
+  @Get('/algoRw')
+  async algoRw(@Query() start: number, @Query() end: number) {
+    return this.ok(await this.algo.algoRw(start,end));
   }
 
   /**
@@ -76,25 +140,25 @@ export class CirclesAppTestController extends BaseController {
    */
   @Get('/seedsInfo')
   async seedsInfo() {
-    return this.ok(await this.seeds.seedsInfo());
+    return this.ok(await this.seeds.info());
   }
 
   /**
    * 请求用户数据
    * @returns
    */
-  @Get('/getAlgoUserList')
-  async getAlgoUserList() {
-    return this.ok(await this.circlesTrustService.getAlgoUserList(0,1));
+  @Get('/getTrust')
+  async getTrust() {
+    return this.ok(await this.circlesTrustService.getTrust());
   }
 
   /**
    * 请求用户数据
    * @returns
    */
-   @Get('/setAlgoUserList')
-   async setAlgoUserList() {
-     return this.ok(await this.circlesTrustService.setAlgoUserList());
-   }
+  @Get('/setAlgoUserList')
+  async setAlgoUserList() {
+    return this.ok(await this.circlesTrustService.test());
+  }
 
 }

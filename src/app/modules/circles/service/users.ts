@@ -8,7 +8,7 @@ import { ICoolCache } from 'midwayjs-cool-core';
 const USER_LIST_KEY = "scuserlist"
 
 /**
- * 商品
+ * 用户
  */
 @Provide()
 export class CirclesUsersService extends BaseService {
@@ -56,9 +56,9 @@ export class CirclesUsersService extends BaseService {
    */
   async getAlgoUserList(start, end) {
     const redis = this.coolCache.getMetaCache();
-    if (redis.llen(USER_LIST_KEY) == 0) {
+    if (await redis.llen(USER_LIST_KEY) == 0) {
       await this.setAlgoUserList();
     }
-    return await redis.lrange(USER_LIST_KEY, start, end);
+    return await redis.lrange(USER_LIST_KEY, Number(start), Number(end));
   }
 }

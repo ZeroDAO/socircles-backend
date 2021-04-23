@@ -2,6 +2,8 @@ import { Inject, Provide } from '@midwayjs/decorator';
 import { BaseService, CoolCommException } from 'midwayjs-cool-core';
 import { Context } from 'egg';
 import neo4j from 'neo4j-driver';
+import * as _ from 'lodash';
+import { CirclesSysService } from './sys';
 
 const { inspect } = require('util');
 const Graph = 'trustGraph';
@@ -13,6 +15,9 @@ const Graph = 'trustGraph';
 export class Neo4jService extends BaseService {
   @Inject()
   ctx: Context;
+
+  @Inject()
+  sys: CirclesSysService;
 
   getConfig() {
     return {
@@ -40,9 +45,43 @@ export class Neo4jService extends BaseService {
    * 创建 Graph
    */
   async createGraph() {
-    this.run(`
-    CALL gds.graph.create('${Graph}', 'User', 'TRUST');
+    await this.run(`
+    CALL gds.graph.create('${Graph}', 'User', 'TRUST', {
+      relationshipProperties: 'weight'
+    });
     `)
+  }
+
+  /**
+   * 删除 Graph
+   */
+  async dropGraph() {
+    if (await this.isExit()) {
+      return await this.run(`
+      CALL gds.graph.drop('${Graph}')
+    `);
+    }
+  }
+
+  /**
+   * 查询图是否存在，不存在则创建
+   */
+  async createGraphIfNotExit() {
+    if (!await this.isExit()) {
+      return await this.createGraph();
+    }
+  }
+
+  /**
+   * 查询图是否存在，不存在则创建
+   */
+  async isExit() {
+    // `CALL gds.graph.exists('${Graph}') YIELD exists`;
+    let isExit = await this.run(`
+      CALL gds.graph.list('${Graph}')
+      YIELD graphName
+    `);
+    return !_.isEmpty(isExit.records);
   }
 
   /**
@@ -150,24 +189,28 @@ export class Neo4jService extends BaseService {
    * 计算 Graph 的 Betweenness
    */
   async betweenness() {
-    return this.run(`
-      CALL gds.betweenness.stream('${Graph}')
-      YIELD nodeId, score
-      WHERE score > 0
-      RETURN gds.util.asNode(nodeId).uid AS uid, score
-      ORDER BY score DESC
-    `)
+    this.createGraphIfNotExit()
+      .then(() => {
+        return this.run(`
+        CALL gds.betweenness.stream('${Graph}')
+        YIELD nodeId, score
+        WHERE score > 0
+        RETURN gds.util.asNode(nodeId).uid AS uid, score
+        ORDER BY score DESC
+      `)
+      })
   }
 
   /**
    * 计算 Graph 的 Betweenness 并写入
    */
   async betweennessWrite() {
+    await this.createGraphIfNotExit();
     return this.run(`
-    CALL gds.betweenness.write('${Graph}', { writeProperty: 'betweenness' })
-    YIELD centralityDistribution
-    RETURN centralityDistribution
-    `)
+      CALL gds.betweenness.write('${Graph}', { writeProperty: 'betweenness' })
+      YIELD centralityDistribution
+      RETURN centralityDistribution
+    `);
   }
 
   /**
@@ -192,16 +235,19 @@ export class Neo4jService extends BaseService {
    * 计算 Graph 的 PageRank 并返回大于0的值
    */
   async pageRank() {
-    return this.run(`
-    CALL gds.pageRank.stream('${Graph}',{
-      maxIterations: 20,
-      dampingFactor: 0.05
-    })
-    YIELD nodeId, score
-    WHERE score > 0
-    RETURN gds.util.asNode(nodeId).name AS name, score
-    ORDER BY score DESC
-    `)
+    this.createGraphIfNotExit()
+      .then(() => {
+        return this.run(`
+        CALL gds.pageRank.stream('${Graph}',{
+          maxIterations: 20,
+          dampingFactor: 0.05
+        })
+        YIELD nodeId, score
+        WHERE score > 0
+        RETURN gds.util.asNode(nodeId).name AS name, score
+        ORDER BY score DESC
+      `)
+      })
   }
 
 
@@ -209,15 +255,18 @@ export class Neo4jService extends BaseService {
    * 计算PR并写入neo4j的节点属性
    */
   async pageRankWrite() {
-    return this.run(`
-    CALL gds.pageRank.write('${Graph}', {
-      maxIterations: 20,
-      dampingFactor: 0.85,
-      writeProperty: 'pagerank'
-    })
-    YIELD centralityDistribution
-    RETURN centralityDistribution
-    `)
+    this.createGraphIfNotExit()
+      .then(() => {
+        return this.run(`
+        CALL gds.pageRank.write('${Graph}', {
+          maxIterations: 20,
+          dampingFactor: 0.85,
+          writeProperty: 'pagerank'
+        })
+        YIELD centralityDistribution
+        RETURN centralityDistribution
+      `)
+      })
   }
 
   /**
@@ -317,12 +366,14 @@ export class Neo4jService extends BaseService {
     `)
   }
 
-  getTails(t, r, relationship = "'TRUST'") {
+  getTails(t, r, relationship) {
+    relationship = _.isEmpty(relationship) ? "'TRUST'" : relationship;
+    let g = r ? ',' : '';
     return `${t}.write({
       nodeProjection: 'User',
       relationshipProjection: ${relationship},
-      writeProperty: '${t}',
-      ${inspect(r).slice(1,-1)}
+      writeProperty: '${t}'${g}
+      ${inspect(r).slice(1, -1)}
     }) YIELD centralityDistribution`
   }
 
@@ -334,10 +385,12 @@ export class Neo4jService extends BaseService {
    *@param uid: 需要计算的用户uid
    */
   async seedsPathFile(uid) {
-    return this.run(`
-    WITH "MATCH (source:User {uid: ${uid}})
+    await this.createGraphIfNotExit();
+    return await this.run(`
+      WITH "MATCH (source:User {uid: ${uid}})
       CALL gds.beta.allShortestPaths.dijkstra.stream('${Graph}', {
-        sourceNode: id(source)
+        sourceNode: id(source),
+        relationshipWeightProperty: 'weight'
       })
       YIELD sourceNode, targetNode, totalCost, nodeIds, costs
       WHERE size(nodeIds) < 6
@@ -349,15 +402,23 @@ export class Neo4jService extends BaseService {
     CALL apoc.export.csv.query(query, "seed_path_${uid}.csv", {})
     YIELD file, source,nodes, relationships, time, rows, batchSize, batches, done, data
     RETURN file, source,nodes, relationships, time, rows, batchSize, batches, done, data;
-    `)
+  `)
   }
 
   async getSeeds(count) {
+    let sys_info = await this.sys.info();
     return this.run(`
       MATCH (n:User)
       RETURN n.uid
-      ORDER BY n.closeness DESC
+      ORDER BY n.${sys_info.seed_algo} DESC
       LIMIT ${count}
     `)
+  }
+
+  /**
+   * 将Rw数据批量导入neo4j
+   */
+  async setRw() {
+    
   }
 }

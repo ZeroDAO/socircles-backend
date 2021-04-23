@@ -84,7 +84,7 @@ export class CirclesTrustService extends BaseService {
       }
       if (t.canSendTo != t.user) {
         let trust = await this.circlesTrustEntity.findOne({ trusted: t.canSendTo, trustee: t.user });
-        let trustCount = await this.circlesTrustCountEntity.findOne(trusted);
+        let trustCount = await this.circlesTrustCountEntity.findOne(trusted.id);
         if (t.limitPercentage == '0') {
           if (!_.isEmpty(trust)) {
             await this.neo4j.delRel({
@@ -93,7 +93,7 @@ export class CirclesTrustService extends BaseService {
             })
             await this.circlesTrustEntity.delete(trust.id);
             // 减少关注人数
-            await this.circlesTrustCountEntity.save({ id: trusted, count: trustCount - 1 });
+            await this.circlesTrustCountEntity.save({ id: trusted.id, count: trustCount.count - 1 });
           }
         } else {
           if (_.isEmpty(trust)) {
@@ -108,8 +108,8 @@ export class CirclesTrustService extends BaseService {
             await this.circlesTrustEntity.save(crateData);
             // 增加关注人数
             await this.circlesTrustCountEntity.save({
-              id: trusted,
-              count: _.isEmpty(trustCount) ? 1 : trustCount + 1
+              id: trusted.id,
+              count: _.isEmpty(trustCount) ? 1 : trustCount.count + 1
             });
           }
         }
@@ -142,6 +142,7 @@ export class CirclesTrustService extends BaseService {
   }
 
   async test() {
+    
     return await this.neo4j.articleRank();
   }
 

@@ -67,13 +67,14 @@ export class CirclesAlgorithmsService extends BaseService {
   /**
    * 开始新的一轮计算
    */
-  async start(seed_count = 20, seed_score = 1000, damping_factor = 0.85, min_divisor = 20) {
+  async start(seed_count = 20, seed_score = 1000, damping_factor = 0.85, min_divisor = 20, seed_algo = 'closeness') {
     let sys_info = await this.sys.info();
     let nonce = 1;
     if (sys_info) {
       if (sys_info.status < 1) {
         throw new CoolCommException('正在计算中，无法开始新的一轮！');
       }
+      await this.neo4j.dropGraph();
       nonce = sys_info.nonce + 1;
       // 重新命名数据表
       await this.nativeQuery(`
@@ -88,10 +89,10 @@ export class CirclesAlgorithmsService extends BaseService {
       `)
     }
 
-    // 新建数据表
     let newRound = await this.circlesSysInfoEntity.insert({
       status: 0,
       nonce,
+      seed_algo,
       seed_count,
       seed_score,
       damping_factor,
@@ -126,7 +127,7 @@ export class CirclesAlgorithmsService extends BaseService {
   /**
    * 计算种子路径至其他所有节点最短路径并生成cvs
    */
-  async getSeedPath(sid = 1) {
+  async getSeedPath(sid) {
     return await this.neo4j.seedsPathFile(sid);
   }
 
@@ -135,7 +136,7 @@ export class CirclesAlgorithmsService extends BaseService {
    * 文件路径在neo4j安装文件夹下 /import/seed_path_${sid}.csv
    *@param sid: 种子用户id
    */
-  async importSeedPath(sid = 1) {
+  async importSeedPath(sid) {
     return await this.nativeQuery(`
       LOAD DATA INFILE '${this.getConfig().neo4jDir}/import/seed_path_${sid}.csv'
       INTO TABLE circles_path
@@ -151,7 +152,7 @@ export class CirclesAlgorithmsService extends BaseService {
    * 批量计算 RW
    */
   async algoRw(start, end) {
-    let sysInfo = await this.sys.info();
+    let sysInfo = await this.sys.info(true);
     let userIds = await this.users.getAlgoUserList(start, end);
     let scoreList = userIds.map(async (uid) => {
       // 从path中获取所有路径
@@ -168,8 +169,8 @@ export class CirclesAlgorithmsService extends BaseService {
         let nodes = curr.nids.match(/./g);
         let costs = curr.costs.match(/./g);
         let iScore = sysInfo.seed_score;
-        for (let i = 0; i < nodes.length; i++) {
-          (iScore / (Number(costs[i]) * Math.max(trustCountList[userList.indexOf(nodes[i])].count, sysInfo.min_divisor))) * sysInfo.damping_factor;
+        for (let i = 0; i < nodes.length - 1; i++) {
+          (iScore / (Number(costs[i + 1]) * Math.max(trustCountList[userList.indexOf(nodes[i])].count, sysInfo.min_divisor))) * sysInfo.damping_factor;
         }
         return prev + iScore;
       }, 0);
@@ -185,6 +186,7 @@ export class CirclesAlgorithmsService extends BaseService {
    * 计算对照组
    */
   async algoConpared(target) {
+    let sys_info = await this.sys.info(true);
     let r;
     switch (target) {
       case "betweenness":
@@ -214,10 +216,8 @@ export class CirclesAlgorithmsService extends BaseService {
         r = await this.neo4j.gdsAlphaWrite(target,'');
         break;
     }
-    let sys_info = await this.sys.info();
-    let saveData = r[0]._fields[0].push({
-      algo: target
-    });
+    let saveData = r.records[0]._fields[0];
+    saveData.algo = target;
     let algo_record = await this.algoRecordsEntity.findOne({nonce: sys_info.nonce, algo: target});
     if (_.isEmpty(algo_record)) {
       await this.algoRecordsEntity.insert(saveData);
