@@ -4,8 +4,9 @@ import { InjectEntityModel } from '@midwayjs/orm';
 import { Repository } from 'typeorm';
 import { CirclesUsersEntity } from '../entity/users';
 import { ICoolCache } from 'midwayjs-cool-core';
+import { CirclesPathEntity } from '../entity/path';
 
-const USER_LIST_KEY = "scuserlist"
+const USER_LIST_KEY = "socirclesUserList"
 
 /**
  * 用户
@@ -14,6 +15,9 @@ const USER_LIST_KEY = "scuserlist"
 export class CirclesUsersService extends BaseService {
   @InjectEntityModel(CirclesUsersEntity)
   circlesUsersEntity: Repository<CirclesUsersEntity>;
+
+  @InjectEntityModel(CirclesPathEntity)
+  pathEntity: Repository<CirclesPathEntity>;
 
   @Inject('cool:cache')
   coolCache: ICoolCache;
@@ -39,8 +43,11 @@ export class CirclesUsersService extends BaseService {
     const redis = this.coolCache.getMetaCache();
     // 压入数据前先清空
     await redis.del(USER_LIST_KEY);
-    let userList = await this.nativeQuery(`select DISTINCT tid from circles_path`);
-    return await redis.lpush(USER_LIST_KEY, userList);
+
+    let userList = await this.nativeQuery(`select GROUP_CONCAT(DISTINCT tid) as tids from circles_path`);
+    console.log(userList[0].tids);
+    
+    return await redis.lpush(USER_LIST_KEY, userList[0].tids.match(/\d+/g));
   }
 
   /**

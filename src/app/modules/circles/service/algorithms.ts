@@ -1,4 +1,4 @@
-import { Inject, Provide } from '@midwayjs/decorator';
+import { Inject, LOGGER_KEY, Provide } from '@midwayjs/decorator';
 import { BaseService, CoolCommException } from 'midwayjs-cool-core';
 import { InjectEntityModel } from '@midwayjs/orm';
 import { Repository } from 'typeorm';
@@ -15,6 +15,8 @@ import { ICoolCache } from 'midwayjs-cool-core';
 import { Context } from 'egg';
 import { Neo4jService } from './neo4j';
 import * as _ from 'lodash';
+
+const { inspect } = require('util');
 
 /**
  * 计算相关指数
@@ -89,6 +91,15 @@ export class CirclesAlgorithmsService extends BaseService {
       `)
     }
 
+    let countData = await this.neo4j.getRwCount();
+
+    if ( countData == 0) {
+      await this.neo4j.initRepuWeight();
+      await this.neo4j.initRelWeight();
+    }
+
+    await this.neo4j.createGraph();
+
     let newRound = await this.circlesSysInfoEntity.insert({
       status: 0,
       nonce,
@@ -154,32 +165,43 @@ export class CirclesAlgorithmsService extends BaseService {
   async algoRw(start, end) {
     let sysInfo = await this.sys.info(true);
     let userIds = await this.users.getAlgoUserList(start, end);
-    let scoreList = userIds.map(async (uid) => {
+    
+    const scoreList = userIds.map(async uid => {
       // 从path中获取所有路径
       let paths = await this.pathEntity.find({ tid: uid });
+      
       let userList = [];
       paths.forEach(p => {
-        userList = [...new Set([...userList, ...p.nids.match(/./g)])];
+        // 删除nid最后一个元素，合并为 Set
+        userList = [...new Set([...userList, ...p.nids.match(/\d+/g).slice(0,-1)])];
       });
       let trustCountList = await this.trustCountEntity
         .findByIds(userList, {
           select: ["count"]
         });
+
       let score = paths.reduce((prev, curr) => {
-        let nodes = curr.nids.match(/./g);
-        let costs = curr.costs.match(/./g);
+        let nodes = curr.nids.match(/\d+/g);
+        // ['0.0']
+        let costs = curr.costs.match(/\d*\.\d*/g);
         let iScore = sysInfo.seed_score;
         for (let i = 0; i < nodes.length - 1; i++) {
-          (iScore / (Number(costs[i + 1]) * Math.max(trustCountList[userList.indexOf(nodes[i])].count, sysInfo.min_divisor))) * sysInfo.damping_factor;
+          iScore = (iScore / (Number(costs[i + 1]) * Math.max(trustCountList[userList.indexOf(nodes[i])].count, sysInfo.min_divisor))) * sysInfo.damping_factor;
         }
         return prev + iScore;
       }, 0);
-      return {
+      return this.scoreEntity.create({
         id: uid,
-        score: score
-      }
+        reputation: score
+      });
     });
-    await this.scoreEntity.insert(scoreList);
+
+    const res = await Promise.all(scoreList)
+      .catch(err => {
+        throw new CoolCommException(err);
+      })
+    
+    await this.scoreEntity.save(res);
   }
 
   /**

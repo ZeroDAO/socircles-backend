@@ -53,6 +53,39 @@ export class Neo4jService extends BaseService {
   }
 
   /**
+   * 初始化关系数据为1
+   */
+  async initRelWeight() {
+    await this.run(`
+    MATCH ()-[r:TRUST]->()
+    SET r.weight = 1
+    `)
+  }
+
+  /**
+   * 初始化rw为0
+   */
+  async initRepuWeight() {
+    await this.run(`
+      MATCH (n:User)
+      SET n.repuweight = 0
+    `)
+  }
+
+  /**
+   * 初始化rw为0
+   */
+  async getRwCount() {
+    return this.resHead(
+      await this.run(`
+      MATCH (n:User)
+      WHERE exists(n.repuweight)
+      RETURN count(n)
+    `)
+    )
+  }
+
+  /**
    * 删除 Graph
    */
   async dropGraph() {
@@ -420,5 +453,17 @@ export class Neo4jService extends BaseService {
    */
   async setRw() {
     
+  }
+
+  /**
+   * 返回NEO4J单条数据
+   */
+  resHead(data) {
+    if (data) {
+      if (data[0]._fields) {
+        return data[0]._fields[0].low;
+      }
+    }
+    throw new CoolCommException('NEO4J ERR');
   }
 }
