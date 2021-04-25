@@ -25,6 +25,7 @@ export class CirclesSeedsService extends BaseService {
       thegraph_url: this.ctx.app.config.thegraph.url,
     }
   }
+  
 
   /**
    * 返回种子用户信任数据

@@ -89,9 +89,11 @@ export class CirclesAlgorithmsService extends BaseService {
       `)
     }
 
+    await this.users.delAlgoUserList();
+
     let countData = await this.neo4j.getRwCount();
 
-    if ( countData == 0) {
+    if (countData == 0) {
       await this.neo4j.initRepuWeight();
       await this.neo4j.initRelWeight();
     }
@@ -141,6 +143,43 @@ export class CirclesAlgorithmsService extends BaseService {
   }
 
   /**
+   * 重置声誉得分，用于重新计算或恢复意外情况
+   */
+  async truncateRw() {
+    return await this.nativeQuery(`truncate table circles_scores`);
+  }
+
+  /**
+   * 设置种子用户声誉值
+   */
+  async setSeedsScore() {
+    const seedIds = await this.seeds.info();
+    const sysInfo = await this.sys.info();
+    let seedsScores = [];
+    seedIds.forEach(seed => {
+      seedsScores.push({
+        id: seed.id,
+        reputation: sysInfo.seed_score,
+      })
+    });
+    return await this.scoreEntity.save(seedsScores);
+  }
+
+  /**
+   * 更新rw汇总数据
+   */
+  async aggregatingRw() {
+    const rwData = await this.neo4j.aggregating('reputation');
+    const sysInfo = await this.sys.info();
+    let rwAgg = {};
+    rwData[0].keys.forEach( (key, i) => {
+      rwAgg[key] = rwData[0]._fields[i + 1];
+    });
+    rwAgg['nonce'] = sysInfo.nonce;
+    return await this.scoreEntity.save(rwAgg);
+  }
+
+  /**
    * 将种子用户路径cvs导入mysql
    * 文件路径在neo4j安装文件夹下 /import/seed_path_${sid}.csv
    *@param sid: 种子用户id
@@ -163,15 +202,15 @@ export class CirclesAlgorithmsService extends BaseService {
   async algoRw(start, end) {
     let sysInfo = await this.sys.info(true);
     let userIds = await this.users.getAlgoUserList(start, end);
-    
+
     const scoreList = userIds.map(async uid => {
       // 从path中获取所有路径
       let paths = await this.pathEntity.find({ tid: uid });
-      
+
       let userList = [];
       paths.forEach(p => {
         // 删除nid最后一个元素，合并为 Set
-        userList = [...new Set([...userList, ...p.nids.match(/\d+/g).slice(0,-1)])];
+        userList = [...new Set([...userList, ...p.nids.match(/\d+/g).slice(0, -1)])];
       });
       let trustCountList = await this.trustCountEntity
         .findByIds(userList, {
@@ -198,7 +237,7 @@ export class CirclesAlgorithmsService extends BaseService {
       .catch(err => {
         throw new CoolCommException(err);
       })
-    
+
     await this.scoreEntity.save(res);
   }
 
@@ -216,13 +255,13 @@ export class CirclesAlgorithmsService extends BaseService {
         r = await this.neo4j.pageRankWrite();
         break;
       case "articlerank":
-        r = await this.neo4j.gdsAlphaWrite(target,{
-          maxIterations:20,
-          dampingFactor:0.85
+        r = await this.neo4j.gdsAlphaWrite(target, {
+          maxIterations: 20,
+          dampingFactor: 0.85
         });
         break;
       case "degree":
-        r = await this.neo4j.gdsAlphaWrite(target,'',`{
+        r = await this.neo4j.gdsAlphaWrite(target, '', `{
           TRUST: {
             type: 'TRUST',
             orientation: 'REVERSE'
@@ -230,15 +269,15 @@ export class CirclesAlgorithmsService extends BaseService {
         }`);
         break;
       case "harmonic":
-        r = await this.neo4j.gdsClosenessWrite(target,'');
+        r = await this.neo4j.gdsClosenessWrite(target, '');
         break;
       default:
-        r = await this.neo4j.gdsAlphaWrite(target,'');
+        r = await this.neo4j.gdsAlphaWrite(target, '');
         break;
     }
     let saveData = r.records[0]._fields[0];
     saveData.algo = target;
-    let algo_record = await this.algoRecordsEntity.findOne({nonce: sys_info.nonce, algo: target});
+    let algo_record = await this.algoRecordsEntity.findOne({ nonce: sys_info.nonce, algo: target });
     if (_.isEmpty(algo_record)) {
       await this.algoRecordsEntity.insert(saveData);
     } else {

@@ -463,9 +463,30 @@ export class Neo4jService extends BaseService {
     SET n.reputation = row.reputation
     `);
   }
-  
+
+  /**
+   * 声誉值统计数据
+   */
+   async aggregating(property) {
+    return await this.run(`
+    MATCH (n:User)
+      WHERE exists(n.${property})
+    RETURN
+      min(n.${property}) AS min, 
+      max(n.${property}) AS max, 
+      avg(n.${property}) AS mean,
+      percentileDisc(n.${property}, 0.5) AS p50,
+      percentileDisc(n.${property}, 0.75) AS p75,
+      percentileDisc(n.${property}, 0.90) AS p90,
+      percentileDisc(n.${property}, 0.95) AS p95,
+      percentileDisc(n.${property}, 0.99) AS p99,
+      percentileDisc(n.${property}, 0.999) AS p999
+    `);
+  }
+
   /**
    * 返回NEO4J单条数据
+   *@param uid: 需要计算的用户uid
    */
   resHead(data) {
     if (data) {

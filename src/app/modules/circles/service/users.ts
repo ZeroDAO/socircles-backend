@@ -46,14 +46,14 @@ export class CirclesUsersService extends BaseService {
 
     let userList = await this.nativeQuery(`select GROUP_CONCAT(DISTINCT tid) as tids from circles_path`);
     console.log(userList[0].tids);
-    
+
     return await redis.lpush(USER_LIST_KEY, userList[0].tids.match(/\d+/g));
   }
 
   /**
    * 删除列表
    */
-   async delAlgoUserList() {
+  async delAlgoUserList() {
     const redis = this.coolCache.getMetaCache();
     return await redis.del(USER_LIST_KEY);
   }
