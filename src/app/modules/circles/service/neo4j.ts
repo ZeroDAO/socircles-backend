@@ -22,6 +22,7 @@ export class Neo4jService extends BaseService {
   getConfig() {
     return {
       neo4j_client: this.ctx.app.config.neo4j.client,
+      mysql: this.ctx.app.config.orm,
     }
   }
 
@@ -68,7 +69,7 @@ export class Neo4jService extends BaseService {
   async initRepuWeight() {
     await this.run(`
       MATCH (n:User)
-      SET n.repuweight = 0
+      SET n.reputation = 0
     `)
   }
 
@@ -451,10 +452,18 @@ export class Neo4jService extends BaseService {
   /**
    * 将Rw数据批量导入neo4j
    */
-  async setRw() {
-    
+  async setReputation() {
+    await this.initRepuWeight();
+    return await this.run(`
+    CALL apoc.load.jdbc(
+      '${this.getJdbcConfig()}',
+      'select id, reputation from circles_scores'
+    ) YIELD row
+    MATCH (n:User {uid: row.id})
+    SET n.reputation = row.reputation
+    `);
   }
-
+  
   /**
    * 返回NEO4J单条数据
    */
@@ -465,5 +474,31 @@ export class Neo4jService extends BaseService {
       }
     }
     throw new CoolCommException('NEO4J ERR');
+  }
+
+  /**
+   * 返回Jdbc配置
+   */
+  getJdbcConfig() {
+    if (this.getConfig().mysql.type != 'mysql') {
+      throw new CoolCommException('Database Mysql Mismatch');
+    }
+    let mysql = this.getConfig().mysql;
+    return `jdbc:mysql://${mysql.host}/${mysql.database}?&user=${mysql.username}&password=${mysql.password}&useUnicode=true&characterEncoding=utf8&serverTimezone=UTC`
+  }
+
+  /**
+   * 返回Jdbc配置
+   */
+  async updateRelWeight() {
+    await this.run(`
+    MATCH (a)-[r:TRUST]->(b)
+    WITH a,b,r,
+    (CASE
+        WHEN (a.reputation - b.reputation) < e() THEN  1
+        ELSE log(a.reputation - b.reputation)
+    END) AS req
+    SET r.weight = req
+    `)
   }
 }

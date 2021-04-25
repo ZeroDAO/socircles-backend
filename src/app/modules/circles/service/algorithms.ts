@@ -1,4 +1,4 @@
-import { Inject, LOGGER_KEY, Provide } from '@midwayjs/decorator';
+import { Inject, Provide } from '@midwayjs/decorator';
 import { BaseService, CoolCommException } from 'midwayjs-cool-core';
 import { InjectEntityModel } from '@midwayjs/orm';
 import { Repository } from 'typeorm';
@@ -15,8 +15,6 @@ import { ICoolCache } from 'midwayjs-cool-core';
 import { Context } from 'egg';
 import { Neo4jService } from './neo4j';
 import * as _ from 'lodash';
-
-const { inspect } = require('util');
 
 /**
  * 计算相关指数

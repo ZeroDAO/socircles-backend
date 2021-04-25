@@ -131,7 +131,7 @@ export class CirclesAppTestController extends BaseController {
    */
   @Get('/algoRw')
   async algoRw(@Query() start: number, @Query() end: number) {
-    return this.ok(await this.algo.algoRw(start,end));
+    return this.ok(await this.algo.algoRw(start, end));
   }
 
   /**
@@ -159,6 +159,24 @@ export class CirclesAppTestController extends BaseController {
   @Get('/setAlgoUserList')
   async setAlgoUserList() {
     return this.ok(await this.circlesTrustService.test());
+  }
+
+  /**
+   * 请求用户数据
+   * @returns
+   */
+  @Get('/setReputation')
+  async setReputation() {
+    return this.ok(await this.neo4j.setReputation());
+  }
+
+  /**
+   * 请求用户数据
+   * @returns
+   */
+  @Get('/updateRelWeight')
+  async updateRelWeight() {
+    return this.ok(await this.neo4j.updateRelWeight());
   }
 
 }
