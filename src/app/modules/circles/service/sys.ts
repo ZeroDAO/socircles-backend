@@ -17,12 +17,6 @@ export class CirclesSysService extends BaseService {
   @Inject('cool:cache')
   coolCache: ICoolCache;
 
-  getConfig() {
-    return {
-      thegraph_url: this.ctx.app.config.thegraph.url,
-    }
-  }
-
   /**
    * 当前系统状态
    */
@@ -40,6 +34,16 @@ export class CirclesSysService extends BaseService {
       }
     }
     return info;
+  }
+
+  /**
+   * 当前系统状态
+   */
+  async finish() {
+    let info = await this.circlesSysInfoEntity.createQueryBuilder()
+      .addOrderBy('id', 'DESC')
+      .getOne();
+    await this.circlesSysInfoEntity.update(info.id,{status: 1});
   }
 
 }

@@ -114,6 +114,16 @@ export class CirclesAlgorithmsService extends BaseService {
   }
 
   /**
+   * 完成计算任务
+   */
+  async finish() {
+    await this.users.delAlgoUserList();
+    await this.sys.finish();
+    await this.aggregatingRw();
+    return;
+  }
+
+  /**
    * 从neo4j获取种子用户，并更新到数据库
    * 注意： 前置条件为依赖指标计算并更新完成
    */
@@ -172,7 +182,7 @@ export class CirclesAlgorithmsService extends BaseService {
     const rwData = await this.neo4j.aggregating('reputation');
     const sysInfo = await this.sys.info();
     let rwAgg = {};
-    rwData[0].keys.forEach( (key, i) => {
+    rwData[0].keys.forEach((key, i) => {
       rwAgg[key] = rwData[0]._fields[i + 1];
     });
     rwAgg['nonce'] = sysInfo.nonce;

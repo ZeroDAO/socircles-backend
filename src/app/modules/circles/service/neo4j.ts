@@ -465,7 +465,7 @@ export class Neo4jService extends BaseService {
   }
 
   /**
-   * 声誉值统计数据
+   * 汇总算法数据
    */
    async aggregating(property) {
     return await this.run(`
@@ -509,7 +509,7 @@ export class Neo4jService extends BaseService {
   }
 
   /**
-   * 返回Jdbc配置
+   * 更新路径权重
    */
   async updateRelWeight() {
     await this.run(`

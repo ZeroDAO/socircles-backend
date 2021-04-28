@@ -1,5 +1,5 @@
 import { Inject, Provide } from '@midwayjs/decorator';
-import { BaseService } from 'midwayjs-cool-core';
+import { BaseService, CoolCommException } from 'midwayjs-cool-core';
 import { InjectEntityModel } from '@midwayjs/orm';
 import { Repository } from 'typeorm';
 import { CirclesTrustEntity } from '../entity/trust';
@@ -9,10 +9,10 @@ import { CirclesUsersEntity } from '../entity/users';
 import { ICoolCache } from 'midwayjs-cool-core';
 import { Context } from 'egg';
 import { Neo4jService } from './neo4j';
-// import * as redis from 'midwayjs-cool-redis';
 import * as _ from 'lodash';
-
 var async = require('async');
+
+const CRAWLER_LOCK = "crawlerLock"
 
 /**
  * 获取信任关系和用户数据
@@ -30,7 +30,7 @@ export class CirclesTrustService extends BaseService {
 
   @InjectEntityModel(CirclesTrustCountEntity)
   circlesTrustCountEntity: Repository<CirclesTrustCountEntity>;
-  
+
   @Inject()
   neo4j: Neo4jService;
 
@@ -50,6 +50,8 @@ export class CirclesTrustService extends BaseService {
    * 返回用户数据
    */
   async getTrust(init = false) {
+    if (await this.getLock()) return;
+    await this.addLock();
     const url = this.getConfig().thegraph_url;
     let trustChange = await this.circlesTrustChangesEntity.createQueryBuilder()
       .addOrderBy('id', 'DESC')
@@ -121,10 +123,37 @@ export class CirclesTrustService extends BaseService {
         c_t_id: t.id,
       })
       callback(null);
-    }, function (err) {
-      // 全部完成后，如果尚有数据，则新增任务         
-      return err;
+    }, async  (err,) => {
+      await this.removeLock();
+      if (err) {
+        // 清除更新锁
+        throw new CoolCommException(err);
+      }
     });
+  }
+
+  /**
+   * 锁定信任数据采集和入库任务
+   */
+  async addLock() {
+    const redis = this.coolCache.getMetaCache();
+    return redis.set(CRAWLER_LOCK, true);
+  }
+
+  /**
+   * 解除信任数据采集和入库任务锁定
+   */
+  async removeLock() {
+    const redis = this.coolCache.getMetaCache();
+    return redis.set(CRAWLER_LOCK, false);
+  }
+
+  /**
+   * 锁定信任数据采集和入库任务
+   */
+  async getLock() {
+    const redis = this.coolCache.getMetaCache();
+    return redis.get(CRAWLER_LOCK);
   }
 
   async findOrAddUsers(address) {
@@ -142,7 +171,7 @@ export class CirclesTrustService extends BaseService {
   }
 
   async test() {
-    
+
     return await this.neo4j.articleRank();
   }
 

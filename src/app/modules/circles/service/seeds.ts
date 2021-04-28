@@ -19,14 +19,7 @@ export class CirclesSeedsService extends BaseService {
 
   @Inject('cool:cache')
   coolCache: ICoolCache;
-
-  getConfig() {
-    return {
-      thegraph_url: this.ctx.app.config.thegraph.url,
-    }
-  }
   
-
   /**
    * 返回种子用户信任数据
    */

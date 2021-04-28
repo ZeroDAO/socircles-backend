@@ -4,6 +4,8 @@ import { InjectEntityModel } from '@midwayjs/orm';
 import { Repository } from 'typeorm';
 import { TaskInfoEntity } from '../entity/info';
 import { TaskLogEntity } from '../entity/log';
+import { CirclesJobsEntity } from '../../circles/entity/jobs';
+import { CirclesSysService } from '../../circles/service/sys';
 import { IQueue } from 'midwayjs-cool-queue';
 import { ILogger } from '@midwayjs/logger';
 import { IMidwayWebApplication } from '@midwayjs/web';
@@ -15,8 +17,14 @@ import { Utils } from '../../../comm/utils';
  */
 @Provide()
 export class TaskInfoService extends BaseService {
+  @Inject()
+  sys: CirclesSysService;
+
   @InjectEntityModel(TaskInfoEntity)
   taskInfoEntity: Repository<TaskInfoEntity>;
+
+  @InjectEntityModel(CirclesJobsEntity)
+  jobsEntity: Repository<CirclesJobsEntity>;
 
   @Logger()
   logger: ILogger;
@@ -197,6 +205,15 @@ export class TaskInfoService extends BaseService {
    * @param detail
    */
   async record(task, status, detail?) {
+    if (task.remark == 'updateStep' && task.type == 0) {
+      let sysInfo = await this.sys.info();
+      let job = await this.jobsEntity.findOne(sysInfo.nonce);
+      if (status == 1) {
+        job.curr_sub_step += 1;
+      }
+      job.status = status;
+      await this.jobsEntity.update(sysInfo.nonce, job);
+    }
     await this.taskLogEntity.save({
       taskId: task.id,
       status,
@@ -214,7 +231,6 @@ export class TaskInfoService extends BaseService {
       [task.id, 19, task.id]
     ); // 日志保留最新的20条
   }
-
   /**
    * 初始化任务
    */

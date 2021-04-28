@@ -8,6 +8,7 @@ import { CirclesAlgorithmsService } from '../../service/algorithms';
 import { CirclesSeedsService } from '../../service/seeds';
 import { CirclesTestService } from '../../service/test';
 import { Neo4jService } from '../../service/neo4j';
+import { CirclesJobsService } from '../../service/jobs';
 
 
 /**
@@ -24,6 +25,9 @@ import { Neo4jService } from '../../service/neo4j';
 export class CirclesAppTestController extends BaseController {
   @Inject()
   circlesUsersService: CirclesUsersService;
+
+  @Inject()
+  jobsService: CirclesJobsService;
 
   @Inject()
   neo4j: Neo4jService;
@@ -111,18 +115,18 @@ export class CirclesAppTestController extends BaseController {
    * 设置种子
    * @returns
    */
-  @Get('/getSeedPath')
-  async getSeedPath(@Query() uid: number) {
-    return this.ok(await this.algo.getSeedPath(uid));
-  }
-
-  /**
-   * 设置种子
-   * @returns
-   */
   @Get('/importSeedPath')
   async importSeedPath(@Query() sid: number) {
     return this.ok(await this.algo.importSeedPath(sid));
+  }
+
+  /**
+   * 获取用户数量
+   * @returns
+   */
+  @Get('/algoCount')
+  async algoCount() {
+    return this.ok(await this.jobsService.test());
   }
 
   /**

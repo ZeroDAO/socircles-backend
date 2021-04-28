@@ -37,6 +37,14 @@ export class CirclesUsersService extends BaseService {
   }
 
   /**
+   * 需计算的用户数量
+   */
+   async algoCount() {
+     let userCount = await this.pathEntity.query('select count(DISTINCT tid) as count from circles_path');
+     return userCount[0].count;
+   }
+
+  /**
    * 将所有需更新用户推入 redis
    */
   async setAlgoUserList() {
