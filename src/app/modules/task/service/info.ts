@@ -214,6 +214,7 @@ export class TaskInfoService extends BaseService {
       job.status = status;
       await this.jobsEntity.update(sysInfo.nonce, job);
     }
+    
     await this.taskLogEntity.save({
       taskId: task.id,
       status,
@@ -273,7 +274,7 @@ export class TaskInfoService extends BaseService {
       [await this.getNextRunTime(jobId), jobId]
     );
   }
-
+ 
   /**
    * 刷新任务状态
    */
@@ -306,6 +307,7 @@ export class TaskInfoService extends BaseService {
   async invokeService(serviceStr) {
     if (serviceStr) {
       const arr = serviceStr.split('.');
+      
       const service = await this.app.getApplicationContext().getAsync(arr[0]);
       for (const child of arr) {
         if (child.includes('(')) {

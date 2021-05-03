@@ -1,4 +1,4 @@
-import { Inject, Provide } from '@midwayjs/decorator';
+import { Inject, Provide, App } from '@midwayjs/decorator';
 import { BaseService, CoolCommException } from 'midwayjs-cool-core';
 import { InjectEntityModel } from '@midwayjs/orm';
 import { Repository } from 'typeorm';
@@ -8,7 +8,10 @@ import { CirclesTrustCountEntity } from '../entity/trust_count';
 import { CirclesUsersEntity } from '../entity/users';
 import { ICoolCache } from 'midwayjs-cool-core';
 import { Context } from 'egg';
+import { Config } from '@midwayjs/decorator';
 import { Neo4jService } from './neo4j';
+import { TaskLogEntity } from '../../task/entity/log';
+import { Application } from 'egg';
 import * as _ from 'lodash';
 var async = require('async');
 
@@ -21,6 +24,9 @@ const CRAWLER_LOCK = "crawlerLock"
 export class CirclesTrustService extends BaseService {
   @InjectEntityModel(CirclesTrustEntity)
   circlesTrustEntity: Repository<CirclesTrustEntity>;
+
+  @InjectEntityModel(TaskLogEntity)
+  taskLogEntity: Repository<TaskLogEntity>;
 
   @InjectEntityModel(CirclesTrustChangesEntity)
   circlesTrustChangesEntity: Repository<CirclesTrustChangesEntity>;
@@ -40,19 +46,19 @@ export class CirclesTrustService extends BaseService {
   @Inject()
   ctx: Context;
 
-  getConfig() {
-    return {
-      thegraph_url: this.ctx.app.config.thegraph.url,
-    }
-  }
+  @Config('thegraph')
+  thegraph;
+
+  @App()
+  app: Application;
 
   /**
-   * 返回用户数据
+   * 采集数据并入库
    */
-  async getTrust(init = false) {
-    if (await this.getLock()) return;
-    await this.addLock();
-    const url = this.getConfig().thegraph_url;
+  async collection(init = false) {
+    let lock = await this.getLock();
+    if (lock && lock == 1) return "LOCKED!WAITING...";
+    const url = this.thegraph.url;
     let trustChange = await this.circlesTrustChangesEntity.createQueryBuilder()
       .addOrderBy('id', 'DESC')
       .getOne();
@@ -62,27 +68,34 @@ export class CirclesTrustService extends BaseService {
     if (init) {
       await this.neo4j.init();
     }
-
-    let circlesData = await this.ctx.curl(url, {
+    let userCount = 0;
+    let relCount = 0;
+    let logDetail = 'circles_' + Date.now() + Math.ceil(Math.random() * 1000);
+    const ctx = this.app.createAnonymousContext()
+    let circlesData = await ctx.curl(url, {
       method: 'POST',
       contentType: 'json',
-      data: { "query": `{trustChanges(first: 1000 ${op}) {id,canSendTo,user,limitPercentage}}`, "variables": {} },
+      data: { "query": `{trustChanges(first: 10 ${op}) {id,canSendTo,user,limitPercentage}}`, "variables": {} },
       dataType: 'json'
     })
+    let circlesDataCount = Object.keys(circlesData.data.data.trustChanges).length;
+    await this.addLock();
     async.forEachSeries(circlesData.data.data.trustChanges, async (t, callback) => {
       let trusted = await this.findOrAddUsers(t.canSendTo);
       let trustee = await this.findOrAddUsers(t.user);
       if (trusted.isNew) {
-        this.neo4j.createNode({
+        await this.neo4j.createNode({
           uid: trusted.id,
           address: t.canSendTo
         })
+        userCount++
       }
       if (trustee.isNew) {
-        this.neo4j.createNode({
+        await this.neo4j.createNode({
           uid: trustee.id,
           address: t.user
         })
+        userCount++
       }
       if (t.canSendTo != t.user) {
         let trust = await this.circlesTrustEntity.findOne({ trusted: t.canSendTo, trustee: t.user });
@@ -113,6 +126,7 @@ export class CirclesTrustService extends BaseService {
               id: trusted.id,
               count: _.isEmpty(trustCount) ? 1 : trustCount.count + 1
             });
+            relCount++
           }
         }
       }
@@ -123,36 +137,41 @@ export class CirclesTrustService extends BaseService {
         c_t_id: t.id,
       })
       callback(null);
-    }, async  (err,) => {
+    }, async (err,) => {
       await this.removeLock();
       if (err) {
-        // 清除更新锁
         throw new CoolCommException(err);
       }
+      // 保存任务结果到log
+      let task = await this.taskLogEntity.findOne({detail: `"${logDetail}"`});
+      if (task) {
+        await this.taskLogEntity.update(task.id,{detail: `${circlesDataCount},${userCount},${relCount}`});
+      }
     });
+    return logDetail;
   }
 
   /**
    * 锁定信任数据采集和入库任务
    */
   async addLock() {
-    const redis = this.coolCache.getMetaCache();
-    return redis.set(CRAWLER_LOCK, true);
+    const redis = await this.getRedis();
+    return redis.set(CRAWLER_LOCK, 1);
   }
 
   /**
    * 解除信任数据采集和入库任务锁定
    */
   async removeLock() {
-    const redis = this.coolCache.getMetaCache();
-    return redis.set(CRAWLER_LOCK, false);
+    const redis = await this.getRedis();
+    return redis.set(CRAWLER_LOCK, 0);
   }
 
   /**
    * 锁定信任数据采集和入库任务
    */
   async getLock() {
-    const redis = this.coolCache.getMetaCache();
+    const redis = await this.getRedis();
     return redis.get(CRAWLER_LOCK);
   }
 
@@ -170,9 +189,18 @@ export class CirclesTrustService extends BaseService {
     };
   }
 
-  async test() {
+  async getRedis() {
+    if (!this.coolCache.getMetaCache()) {
+      await this.coolCache.init();
+    }
+    return await this.coolCache.getMetaCache();
+  }
 
-    return await this.neo4j.articleRank();
+
+  async test() {
+    const logDetail = 'circles_1620012540661298';
+    let task = await this.taskLogEntity.findOne({detail: `"${logDetail}"`})
+    return task;
   }
 
 }

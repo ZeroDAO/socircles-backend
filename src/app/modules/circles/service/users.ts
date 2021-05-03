@@ -22,12 +22,6 @@ export class CirclesUsersService extends BaseService {
   @Inject('cool:cache')
   coolCache: ICoolCache;
 
-  getConfig() {
-    return {
-      thegraph_url: this.ctx.app.config.thegraph.url,
-    }
-  }
-
   /**
    * 返回所有数据
    */
@@ -48,12 +42,11 @@ export class CirclesUsersService extends BaseService {
    * 将所有需更新用户推入 redis
    */
   async setAlgoUserList() {
-    const redis = this.coolCache.getMetaCache();
+    const redis = await this.getRedis();
     // 压入数据前先清空
     await redis.del(USER_LIST_KEY);
 
     let userList = await this.nativeQuery(`select GROUP_CONCAT(DISTINCT tid) as tids from circles_path`);
-    console.log(userList[0].tids);
 
     return await redis.lpush(USER_LIST_KEY, userList[0].tids.match(/\d+/g));
   }
@@ -62,7 +55,7 @@ export class CirclesUsersService extends BaseService {
    * 删除列表
    */
   async delAlgoUserList() {
-    const redis = this.coolCache.getMetaCache();
+    const redis = await this.getRedis();
     return await redis.del(USER_LIST_KEY);
   }
 
@@ -70,10 +63,17 @@ export class CirclesUsersService extends BaseService {
    * 从列表中批量获取用户
    */
   async getAlgoUserList(start, end) {
-    const redis = this.coolCache.getMetaCache();
+    const redis = await this.getRedis();
     if (await redis.llen(USER_LIST_KEY) == 0) {
       await this.setAlgoUserList();
     }
     return await redis.lrange(USER_LIST_KEY, Number(start), Number(end));
+  }
+
+  async getRedis() {
+    if (!this.coolCache) {
+      await this.coolCache.init();
+    }
+    return await this.coolCache.getMetaCache();
   }
 }

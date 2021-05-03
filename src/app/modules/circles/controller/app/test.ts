@@ -151,9 +151,9 @@ export class CirclesAppTestController extends BaseController {
    * 请求用户数据
    * @returns
    */
-  @Get('/getTrust')
-  async getTrust() {
-    return this.ok(await this.circlesTrustService.getTrust());
+  @Get('/getTask')
+  async getTask() {
+    return this.ok(await this.circlesTrustService.test());
   }
 
   /**

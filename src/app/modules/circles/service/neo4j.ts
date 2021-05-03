@@ -4,6 +4,7 @@ import { Context } from 'egg';
 import neo4j from 'neo4j-driver';
 import * as _ from 'lodash';
 import { CirclesSysService } from './sys';
+import { Config } from '@midwayjs/decorator';
 
 const { inspect } = require('util');
 const Graph = 'trustGraph';
@@ -16,24 +17,23 @@ export class Neo4jService extends BaseService {
   @Inject()
   ctx: Context;
 
+  @Config('neo4j')
+  neo4jConf;
+
+  @Config('orm')
+  ormConf;
+
   @Inject()
   sys: CirclesSysService;
-
-  getConfig() {
-    return {
-      neo4j_client: this.ctx.app.config.neo4j.client,
-      mysql: this.ctx.app.config.orm,
-    }
-  }
 
   /**
    * 创建 driver
    */
   async create() {
-    var driver = neo4j.driver(this.getConfig().neo4j_client.url,
+    var driver = neo4j.driver(this.neo4jConf.client.url,
       neo4j.auth.basic(
-        this.getConfig().neo4j_client.username,
-        this.getConfig().neo4j_client.password
+        this.neo4jConf.client.username,
+        this.neo4jConf.client.password
       )
     )
     // var session = driver.session()
@@ -122,7 +122,6 @@ export class Neo4jService extends BaseService {
    * 运行 neo4j
    */
   async run(content) {
-    console.log(content);
 
     const driver = await this.create();
     var session = driver.session();
@@ -137,14 +136,30 @@ export class Neo4jService extends BaseService {
    * - 建立 graph
    */
 
-  async init() {
-    /*
+  async initNeo4j() {
     await this.run(`
       CREATE CONSTRAINT ON (a:User) ASSERT a.uid IS UNIQUE
       CREATE INDEX FOR (n:User) ON (n.address)
-      CALL gds.graph.create('${Graph}', 'User', 'TRUST');
     `)
-    */
+  }
+
+  /**
+   * 获取索引列表
+   */
+  async getIndex() {
+    await this.run(`
+    :schema
+    `)
+  }
+
+  /**
+   * 返回用户
+   */
+
+  async users(limit = 20) {
+    return await this.run(`
+      MATCH (n:User) RETURN n LIMIT ${limit}
+    `)
   }
 
   /**
@@ -467,7 +482,7 @@ export class Neo4jService extends BaseService {
   /**
    * 汇总算法数据
    */
-   async aggregating(property) {
+  async aggregating(property) {
     return await this.run(`
     MATCH (n:User)
       WHERE exists(n.${property})
@@ -501,10 +516,10 @@ export class Neo4jService extends BaseService {
    * 返回Jdbc配置
    */
   getJdbcConfig() {
-    if (this.getConfig().mysql.type != 'mysql') {
+    if (this.ormConf.type != 'mysql') {
       throw new CoolCommException('Database Mysql Mismatch');
     }
-    let mysql = this.getConfig().mysql;
+    let mysql = this.ormConf;
     return `jdbc:mysql://${mysql.host}/${mysql.database}?&user=${mysql.username}&password=${mysql.password}&useUnicode=true&characterEncoding=utf8&serverTimezone=UTC`
   }
 

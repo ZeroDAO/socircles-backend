@@ -1,14 +1,19 @@
 import { Inject, Provide } from '@midwayjs/decorator';
-import { BaseService } from 'midwayjs-cool-core';
+import { BaseService, CoolCommException } from 'midwayjs-cool-core';
 import { InjectEntityModel } from '@midwayjs/orm';
 import { Repository } from 'typeorm';
 import { CirclesJobsEntity } from '../entity/jobs';
-import { ICoolCache } from 'midwayjs-cool-core';
 import { TaskInfoService } from '../../task/service/info';
+import { CirclesTrustService } from './trust';
 import { TaskInfoEntity } from '../../task/entity/info';
 import { CirclesSysService } from './sys';
 import { CirclesSeedsService } from './seeds';
 import { CirclesUsersService } from './users';
+import { Neo4jService } from './neo4j';
+
+import * as _ from 'lodash';
+
+const COLLECTION_SERVICE = 'circlesTrustService.collection()';
 
 /**
  * 用户
@@ -25,6 +30,9 @@ export class CirclesJobsService extends BaseService {
   taskInfoService: TaskInfoService;
 
   @Inject()
+  trustService: CirclesTrustService
+
+  @Inject()
   users: CirclesUsersService;
 
   @Inject()
@@ -33,14 +41,14 @@ export class CirclesJobsService extends BaseService {
   @Inject()
   seeds: CirclesSeedsService;
 
-  @Inject('cool:cache')
-  coolCache: ICoolCache;
+  @Inject()
+  neo4j: Neo4jService;
 
   /**
    * 调用测试
    */
   async test() {
-    let jobId = 'circles_' + Date.now() + Math.ceil(Math.random()*1000);
+    let jobId = 'circles_' + Date.now() + Math.ceil(Math.random() * 1000);
     return await this.taskInfoEntity.save({
       jobId,
       every: 10000,
@@ -50,10 +58,56 @@ export class CirclesJobsService extends BaseService {
   }
 
   /**
+   * 设置爬虫任务
+   */
+  async collection(every) {
+
+    let task = await this.taskInfoEntity.findOne({ service: COLLECTION_SERVICE });
+    if (task) {
+      
+      await this.taskInfoEntity.update(task.id,{
+        name: 'CRAWLER',
+        every: every,
+        taskType: 1,
+      })
+    } else {
+      await this.taskInfoEntity.insert({
+        name: 'CRAWLER',
+        every: every,
+        service: COLLECTION_SERVICE,
+        taskType: 1
+      })
+    }
+  }
+
+  /**
+   * 获取爬虫info
+   */
+  async crawlerInfo() {
+    return await this.taskInfoEntity.findOne({
+      service: COLLECTION_SERVICE
+    });
+  }
+
+  /**
+   * 开始采集任务
+   */
+  async startCollection(...id: any) {
+    if (!id) {
+      let task = await this.taskInfoEntity.findOne({ service: COLLECTION_SERVICE });
+      if (!task) {
+        throw new CoolCommException('LACK OF TASK ID'); 
+      }
+      id = task.id;
+    }
+    return await this.taskInfoService.start(id);
+  }
+
+  /**
    * 初始化调度，开始任务
    */
-  async start(grade) {
-    let jobId = 'circles_' + Date.now() + Math.ceil(Math.random()*1000);
+  async startWatch(grade) {
+    let jobId = 'circles_' + Date.now() + Math.ceil(Math.random() * 1000);
 
     let task = await this.taskInfoEntity.save({
       jobId,
@@ -88,6 +142,21 @@ export class CirclesJobsService extends BaseService {
   }
 
   /**
+   * 采集任务停止
+   */
+   async stopCollection(id?) {
+    if (!id) {
+      let task = await this.taskInfoEntity.findOne({ service: COLLECTION_SERVICE });
+      if (!task) {
+        throw new CoolCommException('LACK OF TASK ID'); 
+      }
+      id = task.id;
+      await this.trustService.removeLock();
+    }
+    await this.taskInfoService.stop(id);
+  }
+
+  /**
    * 调度任务停止
    */
   async stopWatch(jobs) {
@@ -97,11 +166,11 @@ export class CirclesJobsService extends BaseService {
   /**
    * 更新步骤信息
    */
-  async updateStep(jobs,total_sub_step = 1) {
+  async updateStep(jobs, total_sub_step = 1) {
     jobs.curr_step += 1;
     jobs.curr_sub_step = 0;
     jobs.total_sub_step = total_sub_step;
-    await this.jobsEntity.update(jobs.id,jobs);
+    await this.jobsEntity.update(jobs.id, jobs);
   }
 
   /**
@@ -120,14 +189,14 @@ export class CirclesJobsService extends BaseService {
             a
           )
         });
-        await this.updateStep(jobs,algos.length)
+        await this.updateStep(jobs, algos.length)
         break;
       // 从neo4j获取种子
       case 1:
         await this.saveAndStart(
           'CirclesAlgorithmsService',
           'setSeeds'
-          )
+        )
         await this.updateStep(jobs)
         break;
       // 初始化种子rw
@@ -135,7 +204,7 @@ export class CirclesJobsService extends BaseService {
         await this.saveAndStart(
           'CirclesAlgorithmsService',
           'setSeedsScore'
-          )
+        )
         await this.updateStep(jobs)
         break;
       // 导出种子路径到文件
@@ -146,9 +215,9 @@ export class CirclesJobsService extends BaseService {
             'CirclesAlgorithmsService',
             'getSeedPath',
             String(sid.id)
-            )
+          )
         });
-        await this.updateStep(jobs,seedIds.length)
+        await this.updateStep(jobs, seedIds.length)
         break;
       // 种子路径文件导入数据库
       case 4:
@@ -157,9 +226,9 @@ export class CirclesJobsService extends BaseService {
             'CirclesAlgorithmsService',
             'importSeedPath',
             String(sid.id)
-            )
+          )
         });
-        await this.updateStep(jobs,seedIds.length)
+        await this.updateStep(jobs, seedIds.length)
         break;
       // 计算rw值
       case 5:
@@ -169,16 +238,16 @@ export class CirclesJobsService extends BaseService {
             'CirclesAlgorithmsService',
             'algoRw',
             `${i * 1000},${(i + 1) * 1000 - 1}`
-            )
+          )
         }
-        await this.updateStep(jobs,Math.ceil(userCount / 1000))
+        await this.updateStep(jobs, Math.ceil(userCount / 1000))
         break;
       // 将rw导入neo4j
       case 6:
         await this.saveAndStart(
           'Neo4jService',
           'setReputation'
-          )
+        )
         await this.updateStep(jobs)
         break;
       // 更新neo4j路径weight
@@ -186,7 +255,7 @@ export class CirclesJobsService extends BaseService {
         await this.saveAndStart(
           'Neo4jService',
           'updateRelWeight'
-          )
+        )
         await this.updateStep(jobs)
         break;
       // 完成
@@ -194,7 +263,7 @@ export class CirclesJobsService extends BaseService {
         await this.saveAndStart(
           'CirclesAlgorithmsService',
           'finish'
-          )
+        )
         await this.updateStep(jobs)
         break;
       default:
@@ -202,7 +271,7 @@ export class CirclesJobsService extends BaseService {
     }
   }
 
-  async saveAndStart(serv,func,params = '') {
+  async saveAndStart(serv, func, params = '') {
     let service = this.makeService(serv, func, params);
     let task = await this.taskInfoEntity.save({
       name: `algo_` + func,

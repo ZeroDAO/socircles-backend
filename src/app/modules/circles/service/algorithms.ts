@@ -14,6 +14,7 @@ import { CirclesSysInfoEntity } from '../entity/sys_info';
 import { ICoolCache } from 'midwayjs-cool-core';
 import { Context } from 'egg';
 import { Neo4jService } from './neo4j';
+import { Config } from '@midwayjs/decorator';
 import * as _ from 'lodash';
 
 /**
@@ -57,12 +58,8 @@ export class CirclesAlgorithmsService extends BaseService {
   @Inject()
   ctx: Context;
 
-  getConfig() {
-    return {
-      thegraph_url: this.ctx.app.config.thegraph.url,
-      neo4jDir: this.ctx.app.config.orm.neo4jDir,
-    }
-  }
+  @Config('orm')
+  ormConf;
 
   /**
    * 开始新的一轮计算
@@ -196,7 +193,7 @@ export class CirclesAlgorithmsService extends BaseService {
    */
   async importSeedPath(sid) {
     return await this.nativeQuery(`
-      LOAD DATA INFILE '${this.getConfig().neo4jDir}/import/seed_path_${sid}.csv'
+      LOAD DATA INFILE '${this.ormConf.neo4jDir}/import/seed_path_${sid}.csv'
       INTO TABLE circles_path
       FIELDS TERMINATED BY ','
       ENCLOSED BY '"'
@@ -205,6 +202,7 @@ export class CirclesAlgorithmsService extends BaseService {
       (\`SID\`, \`TID\`, \`NIDS\`, \`COSTS\`)
     `);
   }
+  
 
   /**
    * 批量计算 RW
