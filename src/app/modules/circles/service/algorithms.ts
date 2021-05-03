@@ -64,13 +64,10 @@ export class CirclesAlgorithmsService extends BaseService {
   /**
    * 开始新的一轮计算
    */
-  async start(seed_count = 20, seed_score = 1000, damping_factor = 0.85, min_divisor = 20, seed_algo = 'closeness') {
-    let sys_info = await this.sys.info();
+  async start(seed_count, seed_score, damping_factor, min_divisor, seed_algo = 'closeness') {
+    let sys_info = await this.sys.infoAndCheckCrawler();
     let nonce = 1;
     if (sys_info) {
-      if (sys_info.status < 1) {
-        throw new CoolCommException('正在计算中，无法开始新的一轮！');
-      }
       await this.neo4j.dropGraph();
       nonce = sys_info.nonce + 1;
       // 重新命名数据表
@@ -97,8 +94,7 @@ export class CirclesAlgorithmsService extends BaseService {
 
     await this.neo4j.createGraph();
 
-    let newRound = await this.circlesSysInfoEntity.insert({
-      status: 0,
+    await this.circlesSysInfoEntity.insert({
       nonce,
       seed_algo,
       seed_count,
@@ -106,8 +102,6 @@ export class CirclesAlgorithmsService extends BaseService {
       damping_factor,
       min_divisor
     });
-
-    return newRound;
   }
 
   /**
@@ -208,7 +202,7 @@ export class CirclesAlgorithmsService extends BaseService {
    * 批量计算 RW
    */
   async algoRw(start, end) {
-    let sysInfo = await this.sys.info(true);
+    let sysInfo = await this.sys.infoAndCheckAlgo();
     let userIds = await this.users.getAlgoUserList(start, end);
 
     const scoreList = userIds.map(async uid => {
@@ -253,7 +247,7 @@ export class CirclesAlgorithmsService extends BaseService {
    * 计算对照组
    */
   async algoConpared(target) {
-    let sys_info = await this.sys.info(true);
+    let sys_info = await this.sys.infoAndCheckAlgo();
     let r;
     switch (target) {
       case "betweenness":

@@ -64,8 +64,8 @@ export class CirclesJobsService extends BaseService {
 
     let task = await this.taskInfoEntity.findOne({ service: COLLECTION_SERVICE });
     if (task) {
-      
-      await this.taskInfoEntity.update(task.id,{
+
+      await this.taskInfoEntity.update(task.id, {
         name: 'CRAWLER',
         every: every,
         taskType: 1,
@@ -96,7 +96,7 @@ export class CirclesJobsService extends BaseService {
     if (!id) {
       let task = await this.taskInfoEntity.findOne({ service: COLLECTION_SERVICE });
       if (!task) {
-        throw new CoolCommException('LACK OF TASK ID'); 
+        throw new CoolCommException('LACK OF TASK ID');
       }
       id = task.id;
     }
@@ -106,20 +106,22 @@ export class CirclesJobsService extends BaseService {
   /**
    * 初始化调度，开始任务
    */
-  async startWatch(grade) {
+  async startWatch(every) {
     let jobId = 'circles_' + Date.now() + Math.ceil(Math.random() * 1000);
+
+    let sysInfo = await this.sys.infoAndCheckAlgo();
 
     let task = await this.taskInfoEntity.save({
       jobId,
-      every: 10000,
-      service: 'CirclesJobsService.watch()',
+      every: every,
+      service: 'circlesJobsService.watch()',
       taskType: 1,
     })
 
     await this.jobsEntity.insert({
+      id: sysInfo.nonce,
       task_id: task.id,
       total_steps: 8,
-      grade
     })
 
     return await this.taskInfoService.start(task.id);
@@ -133,7 +135,7 @@ export class CirclesJobsService extends BaseService {
     let jobs = await this.jobsEntity.findOne(sysInfo.nonce);
     if (jobs.status == 0 ||
       (jobs.total_steps <= jobs.curr_step && jobs.total_sub_step <= jobs.curr_sub_step)) {
-      return await this.stopWatch(jobs);
+      return await this.stopWatchTask(jobs);
     }
     if (jobs.total_sub_step == jobs.curr_sub_step) {
       return await this.nextStep(jobs.curr_step);
@@ -144,11 +146,11 @@ export class CirclesJobsService extends BaseService {
   /**
    * 采集任务停止
    */
-   async stopCollection(id?) {
+  async stopCollection(id?) {
     if (!id) {
       let task = await this.taskInfoEntity.findOne({ service: COLLECTION_SERVICE });
       if (!task) {
-        throw new CoolCommException('LACK OF TASK ID'); 
+        throw new CoolCommException('LACK OF TASK ID');
       }
       id = task.id;
       await this.trustService.removeLock();
@@ -159,8 +161,30 @@ export class CirclesJobsService extends BaseService {
   /**
    * 调度任务停止
    */
-  async stopWatch(jobs) {
+  async stopWatchTask(jobs) {
     await this.taskInfoService.stop(jobs.id);
+  }
+
+  /**
+   * 发出停止信号
+   */
+  async stopWatch() {
+    let sysInfo = await this.sys.infoAndCheckAlgo();
+    await this.jobsEntity.update(sysInfo.nonce, {
+      status: 0
+    })
+  }
+
+  /**
+   * 恢复启动 watch
+   */
+   async regainWatch() {
+    let sysInfo = await this.sys.infoAndCheckAlgo();
+    let jobs = await this.jobsEntity.findOne(sysInfo.nonce);
+    await this.jobsEntity.update(sysInfo.nonce, {
+      status: 1
+    })
+    await this.taskInfoService.start(jobs.id);
   }
 
   /**
@@ -171,6 +195,18 @@ export class CirclesJobsService extends BaseService {
     jobs.curr_sub_step = 0;
     jobs.total_sub_step = total_sub_step;
     await this.jobsEntity.update(jobs.id, jobs);
+  }
+
+  /**
+   * 返回当前进度信息
+   */
+  async jobInfo(id) {
+    let job = await this.jobsEntity.findOne(id);
+    if (job) {
+      let task = this.taskInfoEntity.findOne(job.task_id);
+      Object.assign(job, task);
+    }
+    return job;
   }
 
   /**

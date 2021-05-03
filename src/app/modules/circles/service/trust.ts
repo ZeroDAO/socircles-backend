@@ -7,6 +7,7 @@ import { CirclesTrustChangesEntity } from '../entity/trust_changes';
 import { CirclesTrustCountEntity } from '../entity/trust_count';
 import { CirclesUsersEntity } from '../entity/users';
 import { ICoolCache } from 'midwayjs-cool-core';
+import { CirclesSysService } from './sys';
 import { Context } from 'egg';
 import { Config } from '@midwayjs/decorator';
 import { Neo4jService } from './neo4j';
@@ -40,6 +41,9 @@ export class CirclesTrustService extends BaseService {
   @Inject()
   neo4j: Neo4jService;
 
+  @Inject()
+  sys:CirclesSysService;
+
   @Inject('cool:cache')
   coolCache: ICoolCache;
 
@@ -63,6 +67,7 @@ export class CirclesTrustService extends BaseService {
       .addOrderBy('id', 'DESC')
       .getOne();
     let op = _.isEmpty(trustChange) ? '' : `, where: { id_gt: "${trustChange.c_t_id}" }`;
+    await this.sys.infoAndCheckCrawler();
 
     // 初始化数据库，建立索引和约束
     if (init) {
@@ -75,7 +80,7 @@ export class CirclesTrustService extends BaseService {
     let circlesData = await ctx.curl(url, {
       method: 'POST',
       contentType: 'json',
-      data: { "query": `{trustChanges(first: 10 ${op}) {id,canSendTo,user,limitPercentage}}`, "variables": {} },
+      data: { "query": `{trustChanges(first: 1000 ${op}) {id,canSendTo,user,limitPercentage}}`, "variables": {} },
       dataType: 'json'
     })
     let circlesDataCount = Object.keys(circlesData.data.data.trustChanges).length;

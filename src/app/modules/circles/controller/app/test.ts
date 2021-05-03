@@ -9,7 +9,7 @@ import { CirclesSeedsService } from '../../service/seeds';
 import { CirclesTestService } from '../../service/test';
 import { Neo4jService } from '../../service/neo4j';
 import { CirclesJobsService } from '../../service/jobs';
-
+import { CirclesSysService } from '../../service/sys';
 
 /**
  * 商品
@@ -43,6 +43,9 @@ export class CirclesAppTestController extends BaseController {
 
   @Inject()
   seeds: CirclesSeedsService;
+
+  @Inject()
+  sys: CirclesSysService;
 
   // 队列
   @Inject()
@@ -81,7 +84,7 @@ export class CirclesAppTestController extends BaseController {
    */
   @Post('/cirdata')
   async cirdata() {
-    return this.ok(await this.circlesTrustService.getTrust());
+    // return this.ok(await this.circlesTrustService.getTrust());
   }
 
   /**
@@ -118,6 +121,20 @@ export class CirclesAppTestController extends BaseController {
   @Get('/importSeedPath')
   async importSeedPath(@Query() sid: number) {
     return this.ok(await this.algo.importSeedPath(sid));
+  }
+
+  @Get('/jobInfo')
+  async jobInfo() {
+    let sysInfo = await this.sys.info();
+    let algoInfo = {};
+    let inAlgo = sysInfo && sysInfo.status == 0;
+    if (inAlgo) {
+      algoInfo = await this.jobsService.jobInfo(sysInfo.nonce);
+    }
+    return this.ok({
+      inAlgo,
+      algoInfo
+    });
   }
 
   /**

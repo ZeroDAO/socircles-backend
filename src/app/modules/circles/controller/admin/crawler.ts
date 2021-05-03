@@ -41,7 +41,7 @@ export class CirclesCrawlerController extends BaseController {
    }
 
   /**
-   * 启动任务
+   * 停止
    */
    @Post('/stop')
    async stop(@Body() id: number) {

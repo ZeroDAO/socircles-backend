@@ -21,29 +21,51 @@ export class CirclesSysService extends BaseService {
    * 当前系统状态
    */
   @Cache(5)
-  async info(check = false) {
+  async info() {
     let info = await this.circlesSysInfoEntity.createQueryBuilder()
       .addOrderBy('id', 'DESC')
       .getOne();
-    if (check) {
-      if (_.isEmpty(info)) {
-        throw new CoolCommException('尚未初始化');
-      }
-      if (info.status != 0) {
-        throw new CoolCommException('不在计算期');
-      }
-    }
     return info;
   }
 
   /**
-   * 当前系统状态
+   * 返回系统状态并检查是否在计算期
+   */
+  async infoAndCheckAlgo() {
+    let sysInfo = await this.check(1);
+    if (!sysInfo) {
+      throw new CoolCommException('尚未开始计算');
+    }
+    return sysInfo;
+  }
+
+  /**
+   * 返回系统状态并检查是否可采集数据
+   */
+   async infoAndCheckCrawler() {
+    let sysInfo = await this.check(0);
+    if (!sysInfo) {
+      throw new CoolCommException('正在计算中，不可更新');
+    }
+    return sysInfo;
+  }
+
+  /**
+   * 结束计算
    */
   async finish() {
     let info = await this.circlesSysInfoEntity.createQueryBuilder()
       .addOrderBy('id', 'DESC')
       .getOne();
-    await this.circlesSysInfoEntity.update(info.id,{status: 1});
+    await this.circlesSysInfoEntity.update(info.id,{status: 0});
+  }
+
+  async check(status) {
+    let info = await this.info()
+    if (_.isEmpty(info)) {
+      throw new CoolCommException('尚未初始化');
+    }
+    return info.status == status ? info : false;
   }
 
 }

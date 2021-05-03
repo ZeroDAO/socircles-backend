@@ -14,10 +14,7 @@ export class CirclesJobsEntity extends BaseEntity {
   @Column()
   job_id: string;
 
-  @Column()
-  grade: number;
-
-  @Column({ comment: '状态 0:中段 1：正常', default: 1, type: 'tinyint' })
+  @Column({ comment: '状态 0:中断 1:正常', default: 1, type: 'tinyint' })
   status: number;
 
   @Column()
