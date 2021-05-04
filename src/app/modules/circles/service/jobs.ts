@@ -203,8 +203,14 @@ export class CirclesJobsService extends BaseService {
   async jobInfo(id) {
     let job = await this.jobsEntity.findOne(id);
     if (job) {
-      let task = this.taskInfoEntity.findOne(job.task_id);
-      Object.assign(job, task);
+      let task = await this.taskInfoEntity.findOne(job.task_id);
+      if (task) {
+        Object.assign(job, {
+          every: task.every,
+          startDate: task.startDate,
+          endData: task.endDate
+        });
+      }
     }
     return job;
   }

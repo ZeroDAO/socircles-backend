@@ -40,6 +40,7 @@ export class CirclesAlgoController extends BaseController {
     }
     return this.ok({
       inAlgo,
+      sysInfo,
       algoInfo
     });
   }
