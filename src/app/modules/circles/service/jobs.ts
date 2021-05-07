@@ -9,11 +9,12 @@ import { TaskInfoEntity } from '../../task/entity/info';
 import { CirclesSysService } from './sys';
 import { CirclesSeedsService } from './seeds';
 import { CirclesUsersService } from './users';
-import { Neo4jService } from './neo4j';
+import { CirclesNeo4jService } from './neo4j';
 
 import * as _ from 'lodash';
 
 const COLLECTION_SERVICE = 'circlesTrustService.collection()';
+const TOTAL_SETPS = 8;
 
 /**
  * 用户
@@ -42,7 +43,7 @@ export class CirclesJobsService extends BaseService {
   seeds: CirclesSeedsService;
 
   @Inject()
-  neo4j: Neo4jService;
+  neo4j: CirclesNeo4jService;
 
   /**
    * 调用测试
@@ -121,7 +122,7 @@ export class CirclesJobsService extends BaseService {
     await this.jobsEntity.insert({
       id: sysInfo.nonce,
       task_id: task.id,
-      total_steps: 8,
+      total_steps: TOTAL_SETPS,
     })
 
     return await this.taskInfoService.start(task.id);
@@ -133,14 +134,13 @@ export class CirclesJobsService extends BaseService {
   async watch() {
     let sysInfo = await this.sys.info();
     let jobs = await this.jobsEntity.findOne(sysInfo.nonce);
-    if (jobs.status == 0 ||
-      (jobs.total_steps <= jobs.curr_step && jobs.total_sub_step <= jobs.curr_sub_step)) {
+    if (jobs.status == 0 || jobs.total_steps <= jobs.curr_step) {
       return await this.stopWatchTask(jobs);
     }
     if (jobs.total_sub_step == jobs.curr_sub_step) {
-      return await this.nextStep(jobs.curr_step);
+      return await this.nextStep(jobs);
     }
-    return;
+    return `WATING... ${jobs.curr_step} / ${jobs.total_steps} - ${jobs.curr_sub_step} / ${jobs.total_sub_step}`;
   }
 
   /**
@@ -162,7 +162,8 @@ export class CirclesJobsService extends BaseService {
    * 调度任务停止
    */
   async stopWatchTask(jobs) {
-    await this.taskInfoService.stop(jobs.id);
+    await this.taskInfoService.stop(jobs.task_id);
+    return `STOP TASK: ${jobs.task_id}`
   }
 
   /**
@@ -177,14 +178,32 @@ export class CirclesJobsService extends BaseService {
 
   /**
    * 恢复启动 watch
+   * Warring: 并不回滚数据
    */
-   async regainWatch() {
+  async regainWatch() {
     let sysInfo = await this.sys.infoAndCheckAlgo();
     let jobs = await this.jobsEntity.findOne(sysInfo.nonce);
     await this.jobsEntity.update(sysInfo.nonce, {
-      status: 1
+      status: 1,
+      curr_sub_step: 0,
+      curr_step: Math.max(jobs.curr_step - 1, 0),
+      total_sub_step: 0
+    });
+    await this.sys.start(sysInfo.id);
+    await this.taskInfoService.start(jobs.task_id);
+  }
+
+  /**
+   * 修改轮询时间
+   */
+  async setAlgoEvery(every) {
+    let sysInfo = await this.sys.infoAndCheckAlgo();
+    let jobs = await this.jobsEntity.findOne(sysInfo.nonce);
+    await this.taskInfoService.stop(jobs.task_id);
+    this.taskInfoEntity.update(jobs.task_id, {
+      every: every
     })
-    await this.taskInfoService.start(jobs.id);
+    await this.taskInfoService.start(jobs.task_id);
   }
 
   /**
@@ -195,6 +214,7 @@ export class CirclesJobsService extends BaseService {
     jobs.curr_sub_step = 0;
     jobs.total_sub_step = total_sub_step;
     await this.jobsEntity.update(jobs.id, jobs);
+    return `NEXT SETP: ${jobs.curr_step}`
   }
 
   /**
@@ -208,7 +228,8 @@ export class CirclesJobsService extends BaseService {
         Object.assign(job, {
           every: task.every,
           startDate: task.startDate,
-          endData: task.endDate
+          endData: task.endDate,
+          nextRunTime: task.nextRunTime
         });
       }
     }
@@ -220,103 +241,103 @@ export class CirclesJobsService extends BaseService {
    */
   async nextStep(jobs) {
     // 开始下一轮任务
+    let seedIds = null;
     switch (jobs.curr_step) {
-      // 中心度计算
-      case 0:
-        let algos = [''];
-        algos.forEach(async a => {
-          await this.saveAndStart(
-            'CirclesAlgorithmsService',
-            'algoConpared',
-            a
-          )
-        });
-        await this.updateStep(jobs, algos.length)
-        break;
-      // 从neo4j获取种子
-      case 1:
-        await this.saveAndStart(
-          'CirclesAlgorithmsService',
-          'setSeeds'
-        )
-        await this.updateStep(jobs)
-        break;
-      // 初始化种子rw
-      case 2:
-        await this.saveAndStart(
-          'CirclesAlgorithmsService',
-          'setSeedsScore'
-        )
-        await this.updateStep(jobs)
-        break;
-      // 导出种子路径到文件
-      case 3:
-        const seedIds = await this.seeds.info();
-        seedIds.forEach(async sid => {
-          await this.saveAndStart(
-            'CirclesAlgorithmsService',
-            'getSeedPath',
-            String(sid.id)
-          )
-        });
-        await this.updateStep(jobs, seedIds.length)
-        break;
-      // 种子路径文件导入数据库
-      case 4:
-        seedIds.forEach(async sid => {
-          await this.saveAndStart(
-            'CirclesAlgorithmsService',
-            'importSeedPath',
-            String(sid.id)
-          )
-        });
-        await this.updateStep(jobs, seedIds.length)
-        break;
-      // 计算rw值
-      case 5:
-        let userCount = await this.users.algoCount();
-        for (let i = 0; i * 1000 < userCount; i++) {
-          await this.saveAndStart(
-            'CirclesAlgorithmsService',
-            'algoRw',
-            `${i * 1000},${(i + 1) * 1000 - 1}`
-          )
-        }
-        await this.updateStep(jobs, Math.ceil(userCount / 1000))
-        break;
-      // 将rw导入neo4j
-      case 6:
-        await this.saveAndStart(
-          'Neo4jService',
-          'setReputation'
-        )
-        await this.updateStep(jobs)
-        break;
       // 更新neo4j路径weight
-      case 7:
+      case 0:
         await this.saveAndStart(
-          'Neo4jService',
+          'circlesAlgorithmsService',
           'updateRelWeight'
         )
-        await this.updateStep(jobs)
-        break;
-      // 完成
-      case 8:
+        return await this.updateStep(jobs)
+      // 中心度计算
+      case 1:
+        let algos = [
+          'betweenness',
+          'pageRank',
+          'articleRank',
+          'degree',
+          'harmonic',
+          'eigenvector',
+          'closeness'
+        ];
+        algos.forEach(async algo => {
+          await this.saveAndStart(
+            'circlesAlgorithmsService',
+            'algoConpared',
+            algo
+          )
+        });
+        return await this.updateStep(jobs, algos.length);
+      // 从neo4j获取种子
+      case 2:
         await this.saveAndStart(
-          'CirclesAlgorithmsService',
-          'finish'
+          'circlesAlgorithmsService',
+          'setSeeds'
         )
-        await this.updateStep(jobs)
-        break;
+        return await this.updateStep(jobs);
+      // 导出种子路径到文件
+      case 3:
+        seedIds = await this.seeds.info();
+        seedIds.forEach(async sid => {
+          await this.saveAndStart(
+            'circlesAlgorithmsService',
+            'getSeedPath',
+            sid.id
+          )
+        });
+        return await this.updateStep(jobs, seedIds.length);
+      // 种子路径文件导入数据库
+      case 4:
+        // 清空路径数据
+        await this.nativeQuery(`truncate table circles_path`);
+        seedIds = await this.seeds.info();
+        seedIds.forEach(async sid => {
+          await this.saveAndStart(
+            'circlesAlgorithmsService',
+            'importSeedPath',
+            sid.id
+          )
+        });
+        return await this.updateStep(jobs, seedIds.length);
+      // 计算rw值
+      case 5:
+        let userCount = await this.users.setAlgoUserList();
+        for (let i = 0; i * 1000 < userCount; i++) {
+          await this.saveAndStart(
+            'circlesAlgorithmsService',
+            'algoRw',
+            {
+              start: i * 1000,
+              end: (i + 1) * 1000 - 1
+            }
+          )
+        }
+        return await this.updateStep(jobs, Math.ceil(userCount / 1000));
+      // 初始化种子rw
+      case 6:
+        await this.saveAndStart(
+          'circlesAlgorithmsService',
+          'setSeedsScore'
+        )
+        return await this.updateStep(jobs);
+      // 将rw导入neo4j
+      case 7:
+        await this.saveAndStart(
+          'circlesAlgorithmsService',
+          'setReputation'
+        )
+        return await this.updateStep(jobs)
       default:
-        break;
+        return 'Wrong Steps';
     }
   }
 
-  async saveAndStart(serv, func, params = '') {
-    let service = this.makeService(serv, func, params);
+  async saveAndStart(serv, func, params = {}) {
+    let service = this.makeService(serv, func, JSON.stringify(params));
     let task = await this.taskInfoEntity.save({
       name: `algo_` + func,
+      jobId: 'CIRCLES_ALGO',
       service,
       taskType: 1,
     });

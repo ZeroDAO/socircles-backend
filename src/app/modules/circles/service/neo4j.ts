@@ -13,7 +13,7 @@ const Graph = 'trustGraph';
  * neo4j 接口
  */
 @Provide()
-export class Neo4jService extends BaseService {
+export class CirclesNeo4jService extends BaseService {
   @Inject()
   ctx: Context;
 
@@ -64,6 +64,17 @@ export class Neo4jService extends BaseService {
   }
 
   /**
+   * 初始化空rw值为1，方便后期使用
+   */
+  async initNoSetRepu() {
+    await this.run(`
+    MATCH (n:User)
+    WHERE n.reputation = null
+    SET n.reputation = 0
+    `)
+  }
+
+  /**
    * 初始化rw为0
    */
   async initRepuWeight() {
@@ -74,16 +85,14 @@ export class Neo4jService extends BaseService {
   }
 
   /**
-   * 初始化rw为0
+   * 返回声誉值大于0的用户数量
    */
   async getRwCount() {
-    return this.resHead(
-      await this.run(`
-      MATCH (n:User)
-      WHERE exists(n.repuweight)
-      RETURN count(n)
+    return await this.run(`
+    MATCH (n:User)
+    WHERE n.reputation > 0
+    RETURN count(n)
     `)
-    )
   }
 
   /**
@@ -107,7 +116,7 @@ export class Neo4jService extends BaseService {
   }
 
   /**
-   * 查询图是否存在，不存在则创建
+   * 查询图是否存在
    */
   async isExit() {
     // `CALL gds.graph.exists('${Graph}') YIELD exists`;
@@ -284,38 +293,33 @@ export class Neo4jService extends BaseService {
    * 计算 Graph 的 PageRank 并返回大于0的值
    */
   async pageRank() {
-    this.createGraphIfNotExit()
-      .then(() => {
-        return this.run(`
-        CALL gds.pageRank.stream('${Graph}',{
-          maxIterations: 20,
-          dampingFactor: 0.05
-        })
-        YIELD nodeId, score
-        WHERE score > 0
-        RETURN gds.util.asNode(nodeId).name AS name, score
-        ORDER BY score DESC
-      `)
+    await this.createGraphIfNotExit();
+    return this.run(`
+      CALL gds.pageRank.stream('${Graph}',{
+        maxIterations: 20,
+        dampingFactor: 0.05
       })
+      YIELD nodeId, score
+      WHERE score > 0
+      RETURN gds.util.asNode(nodeId).name AS name, score
+      ORDER BY score DESC
+    `)
   }
-
 
   /**
    * 计算PR并写入neo4j的节点属性
    */
   async pageRankWrite() {
-    this.createGraphIfNotExit()
-      .then(() => {
-        return this.run(`
-        CALL gds.pageRank.write('${Graph}', {
-          maxIterations: 20,
-          dampingFactor: 0.85,
-          writeProperty: 'pagerank'
-        })
-        YIELD centralityDistribution
-        RETURN centralityDistribution
-      `)
-      })
+    await this.createGraphIfNotExit();
+    return this.run(`
+    CALL gds.pageRank.write('${Graph}', {
+      maxIterations: 20,
+      dampingFactor: 0.85,
+      writeProperty: 'pagerank'
+    })
+    YIELD centralityDistribution
+    RETURN centralityDistribution
+  `)
   }
 
   /**
@@ -504,6 +508,8 @@ export class Neo4jService extends BaseService {
    *@param uid: 需要计算的用户uid
    */
   resHead(data) {
+    console.log(data);
+
     if (data) {
       if (data[0]._fields) {
         return data[0]._fields[0].low;

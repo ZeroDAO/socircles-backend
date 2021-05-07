@@ -6,6 +6,12 @@ import { CirclesSysInfoEntity } from '../entity/sys_info';
 import { ICoolCache } from 'midwayjs-cool-core';
 import * as _ from 'lodash';
 
+enum SysStatus {
+  FAIL = -1,
+  DONE = 0,
+  ALGO = 1
+}
+
 /**
  * 系统信息
  */
@@ -20,7 +26,7 @@ export class CirclesSysService extends BaseService {
   /**
    * 当前系统状态
    */
-  @Cache(5)
+  // @Cache()
   async info() {
     let info = await this.circlesSysInfoEntity.createQueryBuilder()
       .addOrderBy('id', 'DESC')
@@ -32,9 +38,9 @@ export class CirclesSysService extends BaseService {
    * 返回系统状态并检查是否在计算期
    */
   async infoAndCheckAlgo() {
-    let sysInfo = await this.check(1);
-    if (!sysInfo) {
-      throw new CoolCommException('尚未开始计算');
+    let sysInfo = await this.check();
+    if (sysInfo.status == SysStatus.DONE) {
+      throw new CoolCommException('不在计算状态');
     }
     return sysInfo;
   }
@@ -42,9 +48,9 @@ export class CirclesSysService extends BaseService {
   /**
    * 返回系统状态并检查是否可采集数据
    */
-   async infoAndCheckCrawler() {
-    let sysInfo = await this.check(0);
-    if (!sysInfo) {
+  async infoAndCheckCrawler() {
+    let sysInfo = await this.check();
+    if (sysInfo.status != SysStatus.DONE) {
       throw new CoolCommException('正在计算中，不可更新');
     }
     return sysInfo;
@@ -57,15 +63,29 @@ export class CirclesSysService extends BaseService {
     let info = await this.circlesSysInfoEntity.createQueryBuilder()
       .addOrderBy('id', 'DESC')
       .getOne();
-    await this.circlesSysInfoEntity.update(info.id,{status: 0});
+    await this.circlesSysInfoEntity.update(info.id, { status: SysStatus.DONE });
   }
 
-  async check(status) {
+  /**
+   * 失败
+   */
+  async fail(id) {
+    await this.circlesSysInfoEntity.update(id, { status: SysStatus.FAIL });
+  }
+
+  /**
+   * 进入计算期
+   */
+  async start(id) {
+    await this.circlesSysInfoEntity.update(id, { status: SysStatus.ALGO });
+  }
+
+  async check() {
     let info = await this.info()
     if (_.isEmpty(info)) {
       throw new CoolCommException('尚未初始化');
     }
-    return info.status == status ? info : false;
+    return info;
   }
 
 }

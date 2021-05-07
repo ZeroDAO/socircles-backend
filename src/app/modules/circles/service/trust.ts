@@ -10,7 +10,7 @@ import { ICoolCache } from 'midwayjs-cool-core';
 import { CirclesSysService } from './sys';
 import { Context } from 'egg';
 import { Config } from '@midwayjs/decorator';
-import { Neo4jService } from './neo4j';
+import { CirclesNeo4jService } from './neo4j';
 import { TaskLogEntity } from '../../task/entity/log';
 import { Application } from 'egg';
 import * as _ from 'lodash';
@@ -39,7 +39,7 @@ export class CirclesTrustService extends BaseService {
   circlesTrustCountEntity: Repository<CirclesTrustCountEntity>;
 
   @Inject()
-  neo4j: Neo4jService;
+  neo4j: CirclesNeo4jService;
 
   @Inject()
   sys:CirclesSysService;

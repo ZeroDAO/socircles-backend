@@ -18,7 +18,7 @@ export class CirclesSeedsService extends BaseService {
   /**
    * 返回种子用户信任数据
    */
-  @Cache(5)
+  // @Cache(5)
   async info() {
     // 获取seed集合
     let seedSet = await this.seedsEntity
@@ -29,5 +29,13 @@ export class CirclesSeedsService extends BaseService {
       .findByIds(
         seedSet.seeds.split(',')
       );
+  }
+
+  async ids() {
+    let seedSet = await this.seedsEntity
+    .createQueryBuilder()
+    .orderBy("id", "DESC")
+    .getOne();
+    return seedSet.seeds.split(',');
   }
 }

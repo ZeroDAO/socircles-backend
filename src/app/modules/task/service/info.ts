@@ -205,11 +205,13 @@ export class TaskInfoService extends BaseService {
    * @param detail
    */
   async record(task, status, detail?) {
-    if (task.remark == 'updateStep' && task.type == 0) {
+    if (task.jobId == 'CIRCLES_ALGO' && task.type == 0) {
       let sysInfo = await this.sys.info();
       let job = await this.jobsEntity.findOne(sysInfo.nonce);
       if (status == 1) {
         job.curr_sub_step += 1;
+      }else {
+        await this.sys.fail(sysInfo.id);
       }
       job.status = status;
       await this.jobsEntity.update(sysInfo.nonce, job);

@@ -16,7 +16,7 @@ export class CirclesSysInfoEntity extends BaseEntity {
   @Column()
   seed_algo: string;
 
-  @Column({ comment: '状态 0:完成 1:计算中', default: 1, type: 'tinyint' })
+  @Column({ comment: '状态 -1: 失败 0:完成 1:计算中', default: 1, type: 'tinyint' })
   status: number;
 
   @Column({ default: 1000 })

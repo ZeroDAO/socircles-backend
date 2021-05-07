@@ -5,6 +5,7 @@ import { Repository } from 'typeorm';
 import { CirclesUsersEntity } from '../entity/users';
 import { ICoolCache } from 'midwayjs-cool-core';
 import { CirclesPathEntity } from '../entity/path';
+import { CirclesSeedsService } from './seeds';
 
 const USER_LIST_KEY = "socirclesUserList"
 
@@ -19,6 +20,9 @@ export class CirclesUsersService extends BaseService {
   @InjectEntityModel(CirclesPathEntity)
   pathEntity: Repository<CirclesPathEntity>;
 
+  @Inject()
+  seeds: CirclesSeedsService;
+
   @Inject('cool:cache')
   coolCache: ICoolCache;
 
@@ -31,14 +35,6 @@ export class CirclesUsersService extends BaseService {
   }
 
   /**
-   * 需计算的用户数量
-   */
-   async algoCount() {
-     let userCount = await this.pathEntity.query('select count(DISTINCT tid) as count from circles_path');
-     return userCount[0].count;
-   }
-
-  /**
    * 将所有需更新用户推入 redis
    */
   async setAlgoUserList() {
@@ -46,9 +42,17 @@ export class CirclesUsersService extends BaseService {
     // 压入数据前先清空
     await redis.del(USER_LIST_KEY);
 
-    let userList = await this.nativeQuery(`select GROUP_CONCAT(DISTINCT tid) as tids from circles_path`);
+    let userDistinct = await this.nativeQuery(
+      `select DISTINCT tid as tid from circles_path`
+      );
 
-    return await redis.lpush(USER_LIST_KEY, userList[0].tids.match(/\d+/g));
+    // 排除种子用户
+    let userList = userDistinct
+      .map((x)=>{
+        return x.tid;
+      });
+
+    return await redis.lpush(USER_LIST_KEY, userList);
   }
 
   /**
@@ -56,6 +60,7 @@ export class CirclesUsersService extends BaseService {
    */
   async delAlgoUserList() {
     const redis = await this.getRedis();
+
     return await redis.del(USER_LIST_KEY);
   }
 
@@ -64,16 +69,19 @@ export class CirclesUsersService extends BaseService {
    */
   async getAlgoUserList(start, end) {
     const redis = await this.getRedis();
-    if (await redis.llen(USER_LIST_KEY) == 0) {
+    try {
+      if (await redis.llen(USER_LIST_KEY) == 0) {
+        await this.setAlgoUserList();
+      }
+    } catch (error) {
       await this.setAlgoUserList();
     }
+
     return await redis.lrange(USER_LIST_KEY, Number(start), Number(end));
   }
 
   async getRedis() {
-    if (!this.coolCache) {
-      await this.coolCache.init();
-    }
+    await this.coolCache.init();
     return await this.coolCache.getMetaCache();
   }
 }

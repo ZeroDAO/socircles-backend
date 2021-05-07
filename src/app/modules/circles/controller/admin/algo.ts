@@ -9,6 +9,7 @@ import { CoolController, BaseController } from 'midwayjs-cool-core';
 import { CirclesJobsService } from '../../service/jobs';
 import { CirclesSysService } from '../../service/sys';
 import { CirclesAlgorithmsService } from '../../service/algorithms';
+import * as _ from 'lodash';
 
 /**
  * 计算
@@ -32,14 +33,11 @@ export class CirclesAlgoController extends BaseController {
   async jobInfo() {
     let sysInfo = await this.sys.info();
     let algoInfo = {};
-    // 是否成功更新计算期
-    let inAlgo = sysInfo && sysInfo.status == 0;
-    if (inAlgo) {
-      // 是否开始监测任务
+    if (sysInfo && sysInfo.status != 0) {
       algoInfo = await this.jobsService.jobInfo(sysInfo.nonce);
     }
     return this.ok({
-      inAlgo,
+      inAlgo: sysInfo && sysInfo.status != 0 && !_.isEmpty(algoInfo),
       sysInfo,
       algoInfo
     });
@@ -83,4 +81,19 @@ export class CirclesAlgoController extends BaseController {
     return this.ok(await this.jobsService.regainWatch());
   }
 
+  /**
+   * 完成任务
+   */
+  @Post('/finish')
+  async finish() {
+    return this.ok(await this.algo.finish());
+  }
+
+  /**
+   * 完成任务
+   */
+  @Post('/set_algo_every')
+  async setAlgoEvery(@Body() every: number) {
+    return this.ok(await this.jobsService.setAlgoEvery(every));
+  }
 }

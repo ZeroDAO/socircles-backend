@@ -22,8 +22,7 @@ export abstract class TaskInfoQueue implements ICoolQueue {
       this.taskInfoService.record(job.data, 1, JSON.stringify(result));
     } catch (error) {      
       console.log(error);
-      
-      this.taskInfoService.record(job.data, 0, JSON.stringify(error));
+      this.taskInfoService.record(job.data, 0, JSON.stringify(error.toString()));
     }
     this.taskInfoService.updateNextRunTime(job.data.id);
     this.taskInfoService.updateStatus();

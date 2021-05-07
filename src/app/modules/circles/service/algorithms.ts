@@ -13,7 +13,7 @@ import { CirclesAlgoRecordsEntity } from '../entity/algo_records';
 import { CirclesSysInfoEntity } from '../entity/sys_info';
 import { ICoolCache } from 'midwayjs-cool-core';
 import { Context } from 'egg';
-import { Neo4jService } from './neo4j';
+import { CirclesNeo4jService } from './neo4j';
 import { Config } from '@midwayjs/decorator';
 import * as _ from 'lodash';
 
@@ -50,7 +50,7 @@ export class CirclesAlgorithmsService extends BaseService {
   seeds: CirclesSeedsService;
 
   @Inject()
-  neo4j: Neo4jService;
+  neo4j: CirclesNeo4jService;
 
   @Inject('cool:cache')
   coolCache: ICoolCache;
@@ -67,19 +67,21 @@ export class CirclesAlgorithmsService extends BaseService {
   async start(seed_count, seed_score, damping_factor, min_divisor, seed_algo = 'closeness') {
     let sys_info = await this.sys.infoAndCheckCrawler();
     let nonce = 1;
+
     if (sys_info) {
       await this.neo4j.dropGraph();
       nonce = sys_info.nonce + 1;
       // 重新命名数据表
       await this.nativeQuery(`
-        RENAME TABLE circles_scores TO circles_scores_${sys_info.nonce}
-      `)
+        RENAME TABLE circles_scores TO circles_scores_${sys_info.nonce}`)
 
       await this.nativeQuery(`
-        CREATE TABLE IF NOT EXISTS \`circles_scores\`(
-          \`id\` INT UNSIGNED,
-          \`reputation\` VARCHAR(100) NOT NULL,
-        )ENGINE=InnoDB;
+      CREATE TABLE IF NOT EXISTS \`circles_scores\` (
+        \`id\` int NOT NULL AUTO_INCREMENT COMMENT 'ID',
+        \`createTime\` datetime(6) NOT NULL COMMENT '创建时间' DEFAULT CURRENT_TIMESTAMP(6),
+        \`updateTime\` datetime(6) NOT NULL COMMENT '更新时间' DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+        \`reputation\` float NOT NULL DEFAULT '0',
+        PRIMARY KEY (\`id\`)) ENGINE=InnoDB
       `)
     }
 
@@ -87,7 +89,7 @@ export class CirclesAlgorithmsService extends BaseService {
 
     let countData = await this.neo4j.getRwCount();
 
-    if (countData == 0) {
+    if (countData.records[0]._fields[0].low == 0) {
       await this.neo4j.initRepuWeight();
       await this.neo4j.initRelWeight();
     }
@@ -105,6 +107,21 @@ export class CirclesAlgorithmsService extends BaseService {
   }
 
   /**
+   * 设置声誉值
+   */
+  async setReputation() {
+    return await this.neo4j.setReputation();
+  }
+
+  /**
+   * 更新路径权重
+   */
+  async updateRelWeight() {
+    await this.neo4j.initNoSetRepu();
+    return await this.neo4j.updateRelWeight();
+  }
+
+  /**
    * 完成计算任务
    */
   async finish() {
@@ -119,10 +136,8 @@ export class CirclesAlgorithmsService extends BaseService {
    * 注意： 前置条件为依赖指标计算并更新完成
    */
   async setSeeds() {
-    let sys_info = await this.sys.info();
-    if (!sys_info || sys_info.status != 0) {
-      throw new CoolCommException('未处于计算状态');
-    }
+    let sys_info = await this.sys.infoAndCheckAlgo();
+
     let seeds_neo = await this.neo4j.getSeeds(sys_info.seed_count);
     let seedsSet = [];
     seeds_neo.records.forEach(e => {
@@ -167,17 +182,27 @@ export class CirclesAlgorithmsService extends BaseService {
   }
 
   /**
+   * 初始化未设置rw节点
+   */
+  async initNoSetRepu() {
+    return await this.neo4j.initNoSetRepu();
+  }
+
+  /**
    * 更新rw汇总数据
    */
   async aggregatingRw() {
     const rwData = await this.neo4j.aggregating('reputation');
     const sysInfo = await this.sys.info();
     let rwAgg = {};
-    rwData[0].keys.forEach((key, i) => {
-      rwAgg[key] = rwData[0]._fields[i + 1];
+    rwData.records[0].keys.forEach((key, i) => {
+      let data = rwData.records[0]._fields[i];
+      console.log(data.low);
+      rwAgg[key] = typeof (data.low) == 'undefined' ? data : data.low;
     });
     rwAgg['nonce'] = sysInfo.nonce;
-    return await this.scoreEntity.save(rwAgg);
+    rwAgg['algo'] = 'reputation';
+    return await this.saveOrUpdateAlgoRecord(rwAgg);
   }
 
   /**
@@ -196,12 +221,13 @@ export class CirclesAlgorithmsService extends BaseService {
       (\`SID\`, \`TID\`, \`NIDS\`, \`COSTS\`)
     `);
   }
-  
+
 
   /**
    * 批量计算 RW
    */
-  async algoRw(start, end) {
+  async algoRw(range) {
+    let { start, end } = range;
     let sysInfo = await this.sys.infoAndCheckAlgo();
     let userIds = await this.users.getAlgoUserList(start, end);
 
@@ -253,10 +279,10 @@ export class CirclesAlgorithmsService extends BaseService {
       case "betweenness":
         r = await this.neo4j.betweennessWrite();
         break;
-      case "pagerank":
+      case "pageRank":
         r = await this.neo4j.pageRankWrite();
         break;
-      case "articlerank":
+      case "articleRank":
         r = await this.neo4j.gdsAlphaWrite(target, {
           maxIterations: 20,
           dampingFactor: 0.85
@@ -279,7 +305,18 @@ export class CirclesAlgorithmsService extends BaseService {
     }
     let saveData = r.records[0]._fields[0];
     saveData.algo = target;
-    let algo_record = await this.algoRecordsEntity.findOne({ nonce: sys_info.nonce, algo: target });
+    saveData.nonce = sys_info.nonce;
+    await this.saveOrUpdateAlgoRecord(saveData);
+  }
+
+  /**
+   * 保存计算记录
+   */
+  async saveOrUpdateAlgoRecord(saveData) {
+    let algo_record = await this.algoRecordsEntity.findOne({
+      nonce: saveData.nonce,
+      algo: saveData.algo
+    });
     if (_.isEmpty(algo_record)) {
       await this.algoRecordsEntity.insert(saveData);
     } else {
@@ -287,3 +324,4 @@ export class CirclesAlgorithmsService extends BaseService {
     }
   }
 }
+
