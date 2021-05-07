@@ -59,6 +59,13 @@ export class CirclesTrustService extends BaseService {
   /**
    * 采集数据并入库
    */
+  async trustCount() {
+    return await this.circlesTrustEntity.count();
+  }
+
+  /**
+   * 采集数据并入库
+   */
   async collection(init = false) {
     let lock = await this.getLock();
     if (lock && lock == 1) return "LOCKED!WAITING...";

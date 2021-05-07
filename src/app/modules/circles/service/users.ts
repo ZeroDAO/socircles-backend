@@ -46,7 +46,6 @@ export class CirclesUsersService extends BaseService {
       `select DISTINCT tid as tid from circles_path`
       );
 
-    // 排除种子用户
     let userList = userDistinct
       .map((x)=>{
         return x.tid;

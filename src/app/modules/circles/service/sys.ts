@@ -3,6 +3,8 @@ import { BaseService, Cache, CoolCommException } from 'midwayjs-cool-core';
 import { InjectEntityModel } from '@midwayjs/orm';
 import { Repository } from 'typeorm';
 import { CirclesSysInfoEntity } from '../entity/sys_info';
+import { CirclesUsersEntity } from '../entity/users';
+import { CirclesTrustEntity } from '../entity/trust';
 import { ICoolCache } from 'midwayjs-cool-core';
 import * as _ from 'lodash';
 
@@ -19,6 +21,12 @@ enum SysStatus {
 export class CirclesSysService extends BaseService {
   @InjectEntityModel(CirclesSysInfoEntity)
   circlesSysInfoEntity: Repository<CirclesSysInfoEntity>;
+
+  @InjectEntityModel(CirclesUsersEntity)
+  usersEntity: Repository<CirclesUsersEntity>;
+
+  @InjectEntityModel(CirclesTrustEntity)
+  trustEntity: Repository<CirclesTrustEntity>;
 
   @Inject('cool:cache')
   coolCache: ICoolCache;
@@ -63,7 +71,13 @@ export class CirclesSysService extends BaseService {
     let info = await this.circlesSysInfoEntity.createQueryBuilder()
       .addOrderBy('id', 'DESC')
       .getOne();
-    await this.circlesSysInfoEntity.update(info.id, { status: SysStatus.DONE });
+    let userCount = await this.usersEntity.count();
+    let trustCount = await this.trustEntity.count();
+    await this.circlesSysInfoEntity.update(info.id, {
+      status: SysStatus.DONE,
+      user_count: userCount,
+      trust_count: trustCount
+    });
   }
 
   /**
