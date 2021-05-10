@@ -13,6 +13,7 @@
     "egg-view-nunjucks": "^2.3.0",
     "ipip-ipdb": "^0.3.0",
     "jsonwebtoken": "^8.5.1",
+    "keccak": "^3.0.1",
     "lodash": "^4.17.21",
     "md5": "^2.3.0",
     "midwayjs-cool-alipay": "^1.0.3",

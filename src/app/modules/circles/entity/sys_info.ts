@@ -11,8 +11,6 @@ export class CirclesSysInfoEntity extends BaseEntity {
   @Column()
   nonce: number;
 
-  // 种子选取算法
-  // TODO: 采用 Enum
   @Column()
   seed_algo: string;
 

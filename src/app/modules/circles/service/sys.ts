@@ -35,10 +35,32 @@ export class CirclesSysService extends BaseService {
    * 当前系统状态
    */
   // @Cache()
-  async info() {
+  async info(nonce?) {
+    
+    if ( nonce ) {
+      return await this.circlesSysInfoEntity.findOne({
+        nonce: nonce,
+        status : SysStatus.DONE
+      });
+    }
     let info = await this.circlesSysInfoEntity.createQueryBuilder()
       .addOrderBy('id', 'DESC')
       .getOne();
+    return info;
+  }
+
+  /**
+   * 获取最后一次成功计算的信息
+   */
+  // @Cache()
+  async lastAlgo() {
+    let info = await this.circlesSysInfoEntity.createQueryBuilder()
+      .where({status: SysStatus.DONE})
+      .addOrderBy('id', 'DESC')
+      .getOne();
+    if (_.isEmpty(info)) {
+      throw new CoolCommException('未找到成功计算数据');
+    }
     return info;
   }
 
@@ -51,6 +73,14 @@ export class CirclesSysService extends BaseService {
       throw new CoolCommException('不在计算状态');
     }
     return sysInfo;
+  }
+
+  /**
+   * 检查系统状态
+   */
+   async checkStatus(nonce) {
+    let sysInfo = await this.circlesSysInfoEntity.findOne({nonce: nonce});
+    return !_.isEmpty(sysInfo) && sysInfo.status == SysStatus.DONE;
   }
 
   /**

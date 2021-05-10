@@ -2,6 +2,7 @@ import { Inject, Provide } from '@midwayjs/decorator';
 import * as ipdb from 'ipip-ipdb';
 import * as _ from 'lodash';
 import { Context } from 'egg';
+import { createKeccakHash } from 'keccak';
 
 /**
  * 帮助类
@@ -65,5 +66,46 @@ export class Utils {
    */
   sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  /**
+   * 是否为数字
+   * @param obj
+   */
+  isNmber(obj) {
+    if(typeof obj === 'number') {
+      return !isNaN(obj)
+    } else if(typeof obj === 'string'){
+      return /^[0-9]*$/.test(obj)
+    }
+    return false;
+  }
+
+  /**
+   * 是否为ETH系地址
+   * @param address
+   */
+  isEthAddress(address) {
+    return /^(0x)?[0-9a-fA-F]{40}$/.test(address);
+  }
+
+  /**
+   * 将地址转换为 EIP-55 格式
+   * https://github.com/ethereum/EIPs/blob/master/EIPS/eip-55.md
+   * @param address
+   */
+  toChecksumAddress(address) {
+    address = address.toLowerCase().replace("0x", "");
+    var hash = createKeccakHash("keccak256").update(address).digest("hex");
+    var ret = "0x";
+
+    for (var i = 0; i < address.length; i++) {
+      if (parseInt(hash[i], 16) >= 8) {
+        ret += address[i].toUpperCase();
+      } else {
+        ret += address[i];
+      }
+    }
+    return ret;
   }
 }

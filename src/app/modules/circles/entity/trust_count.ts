@@ -3,7 +3,7 @@ import { BaseEntity } from 'midwayjs-cool-core';
 import { Column } from 'typeorm';
 
 /**
- * 信任关系
+ * 某用户信任了多少用户
  */
 @EntityModel('circles_trust_count')
 export class CirclesTrustCountEntity extends BaseEntity {

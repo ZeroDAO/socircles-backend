@@ -162,7 +162,7 @@ export class CirclesNeo4jService extends BaseService {
   }
 
   /**
-   * 返回用户
+   * 返回用户列表
    */
 
   async users(limit = 20) {
@@ -484,6 +484,15 @@ export class CirclesNeo4jService extends BaseService {
   }
 
   /**
+   * 获取用户信息
+   */
+  async userById(uid) {
+    return await this.run(`
+      match(x:User{uid: ${uid}}) return x
+    `);
+  }
+
+  /**
    * 汇总算法数据
    */
   async aggregating(property) {
@@ -505,7 +514,7 @@ export class CirclesNeo4jService extends BaseService {
 
   /**
    * 返回NEO4J单条数据
-   *@param uid: 需要计算的用户uid
+   *@param data: 获得的单条数据
    */
   resHead(data) {
     console.log(data);
@@ -516,6 +525,18 @@ export class CirclesNeo4jService extends BaseService {
       }
     }
     throw new CoolCommException('NEO4J ERR');
+  }
+
+  /**
+   * 格式化列表数据
+   *@param data: 
+   */
+  formatting(data) {
+    let res = {}
+    for (let key in data) {
+      res[key] = data[key].low || data[key];
+    }
+    return res;
   }
 
   /**
@@ -541,6 +562,19 @@ export class CirclesNeo4jService extends BaseService {
         ELSE log(a.reputation - b.reputation)
     END) AS req
     SET r.weight = req
+    `)
+  }
+
+  /**
+   * 两点间的最短路径
+   *@param source: 来源节点的 uid
+   *@param target: 目标节点的 uid
+   */
+  async shortestPath(sourceUid, targetUid, cost = 8) {
+    return await this.run(`
+      MATCH (start:User {uid: ${sourceUid}}), (end:User {uid: ${targetUid}})
+      MATCH p=shortestPath((start)-[:TRUST*..${cost}]->(end))
+      RETURN p
     `)
   }
 }

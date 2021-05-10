@@ -19,7 +19,7 @@ var async = require('async');
 const CRAWLER_LOCK = "crawlerLock"
 
 /**
- * 获取信任关系和用户数据
+ * 信任关系和用户数据
  */
 @Provide()
 export class CirclesTrustService extends BaseService {

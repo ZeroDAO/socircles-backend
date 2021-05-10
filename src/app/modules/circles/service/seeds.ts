@@ -33,9 +33,9 @@ export class CirclesSeedsService extends BaseService {
 
   async ids() {
     let seedSet = await this.seedsEntity
-    .createQueryBuilder()
-    .orderBy("id", "DESC")
-    .getOne();
+      .createQueryBuilder()
+      .orderBy("id", "DESC")
+      .getOne();
     return seedSet.seeds.split(',');
   }
 }
