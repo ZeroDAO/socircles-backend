@@ -7,9 +7,12 @@ import { Column } from 'typeorm';
  */
 @EntityModel('circles_seeds_info')
 export class CirclesSeedsInfoEntity extends BaseEntity {
-  @Column()
+  @Column({ comment: 'circles 头像', nullable: true})
   avatar: string;
 
-  @Column()
+  @Column({ comment: 'circles 用户名'})
   username: string;
+
+  @Column({ comment: 'circles id'})
+  cid: number;
 }

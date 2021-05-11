@@ -14,7 +14,7 @@ import { CirclesNeo4jService } from './neo4j';
 import * as _ from 'lodash';
 
 const COLLECTION_SERVICE = 'circlesTrustService.collection()';
-const TOTAL_SETPS = 8;
+const TOTAL_SETPS = 9;
 
 /**
  * 用户
@@ -326,6 +326,12 @@ export class CirclesJobsService extends BaseService {
         await this.saveAndStart(
           'circlesAlgorithmsService',
           'setReputation'
+        )
+        return await this.updateStep(jobs)
+      case 8:
+        await this.saveAndStart(
+          'circlesSeedsService',
+          'getSeedsInfo'
         )
         return await this.updateStep(jobs)
       default:

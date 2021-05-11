@@ -8,11 +8,10 @@ import { CirclesTrustCountEntity } from '../entity/trust_count';
 import { CirclesUsersEntity } from '../entity/users';
 import { ICoolCache } from 'midwayjs-cool-core';
 import { CirclesSysService } from './sys';
-import { Context } from 'egg';
 import { Config } from '@midwayjs/decorator';
 import { CirclesNeo4jService } from './neo4j';
 import { TaskLogEntity } from '../../task/entity/log';
-import { Application } from 'egg';
+import { Application, Context} from 'egg';
 import * as _ from 'lodash';
 var async = require('async');
 

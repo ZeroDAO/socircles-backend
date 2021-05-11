@@ -35,6 +35,11 @@ export default (appInfo: EggAppInfo) => {
     url: 'https://api.thegraph.com/subgraphs/name/circlesubi/circles'
   }
 
+  // circles api 请求地址
+  config.circlesApi = {
+    url: 'https://api.circles.garden/api/'
+  }
+
   // 靜態目錄及緩存設置
   config.static = {
     prefix: '',

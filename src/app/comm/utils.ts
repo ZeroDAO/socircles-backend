@@ -2,7 +2,7 @@ import { Inject, Provide } from '@midwayjs/decorator';
 import * as ipdb from 'ipip-ipdb';
 import * as _ from 'lodash';
 import { Context } from 'egg';
-import { createKeccakHash } from 'keccak';
+import * as createKeccakHash from 'keccak';
 
 /**
  * 帮助类
