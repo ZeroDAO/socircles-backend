@@ -50,12 +50,19 @@ export class UserAppController extends BaseController {
   ) {
     const sourceUid = await this.user.addressToId(source);
     const targetUid = await this.user.addressToId(target);
+     
+    if (!sourceUid || !targetUid) {
+      return this.ok([]);
+    }
+    
     let res = await this.neo4j.shortestPath(sourceUid, targetUid);
 
     let path = [];
 
     if (!_.isEmpty(res)) {
-      path = res.records[0]._fields[0].segments.map((s) => {
+
+      
+    path = res.records[0]._fields[0].segments.map((s) => {
         return s.start.properties.address;
       })
     }

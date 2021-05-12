@@ -7,6 +7,7 @@ import { ICoolCache } from 'midwayjs-cool-core';
 import { CirclesPathEntity } from '../entity/path';
 import { CirclesSeedsService } from './seeds';
 import { CirclesNeo4jService } from './neo4j';
+import { CirclesSysService } from './sys';
 import { Utils } from '../../../comm/utils';
 import * as _ from 'lodash';
 
@@ -28,6 +29,9 @@ export class CirclesUsersService extends BaseService {
 
   @Inject()
   neo4j: CirclesNeo4jService;
+  
+  @Inject()
+  sys: CirclesSysService;
 
   @Inject('cool:cache')
   coolCache: ICoolCache;
@@ -118,6 +122,8 @@ export class CirclesUsersService extends BaseService {
     if (!_.isEmpty(userInfo)) {
       userInfo = this.neo4j.formatting(userInfo.records[0]._fields[0].properties);
     }
+    let sysInfo = await this.sys.lastAlgo();
+    userInfo.nonce = sysInfo.nonce;
     return userInfo;
   }
 

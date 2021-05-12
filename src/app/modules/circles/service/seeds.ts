@@ -120,7 +120,7 @@ export class CirclesSeedsService extends BaseService {
         let avatarUrl = item.avatarUrl;
         await this.seedsInfoEntity.save({
           id: newSeedsObj[item.safeAddress],
-          avatar: avatarUrl.slice(avatarUrl.lastIndexOf('/') + 1, avatarUrl.lenght),
+          avatar: avatarUrl ? avatarUrl.slice(avatarUrl.lastIndexOf('/') + 1, avatarUrl.lenght) : null,
           cid: item.id,
           username: item.username,
         })
