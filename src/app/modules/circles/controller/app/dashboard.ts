@@ -1,4 +1,4 @@
-import { App, Inject, Post, Provide } from '@midwayjs/decorator';
+import { App, Inject, Provide } from '@midwayjs/decorator';
 import { IMidwayWebApplication } from '@midwayjs/web';
 import { Context } from 'egg';
 import { CoolController, BaseController } from 'midwayjs-cool-core';

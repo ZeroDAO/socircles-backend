@@ -6,6 +6,7 @@ import { CirclesSysInfoEntity } from '../entity/sys_info';
 import { CirclesUsersEntity } from '../entity/users';
 import { CirclesTrustEntity } from '../entity/trust';
 import { ICoolCache } from 'midwayjs-cool-core';
+import { Utils } from '../../../comm/utils';
 import * as _ from 'lodash';
 
 enum SysStatus {
@@ -28,6 +29,9 @@ export class CirclesSysService extends BaseService {
   @InjectEntityModel(CirclesTrustEntity)
   trustEntity: Repository<CirclesTrustEntity>;
 
+  @Inject()
+  utils: Utils;
+
   @Inject('cool:cache')
   coolCache: ICoolCache;
 
@@ -36,11 +40,15 @@ export class CirclesSysService extends BaseService {
    */
   // @Cache()
   async info(nonce?) {
-    
-    if ( nonce ) {
+
+    if (nonce) {
+      // 检查
+      if (!this.utils.isNmber(nonce)) {
+        throw new CoolCommException('参数错误或 nonce 状态不正确');
+      }
       return await this.circlesSysInfoEntity.findOne({
         nonce: nonce,
-        status : SysStatus.DONE
+        status: SysStatus.DONE
       });
     }
     let info = await this.circlesSysInfoEntity.createQueryBuilder()
@@ -55,7 +63,7 @@ export class CirclesSysService extends BaseService {
   // @Cache()
   async lastAlgo() {
     let info = await this.circlesSysInfoEntity.createQueryBuilder()
-      .where({status: SysStatus.DONE})
+      .where({ status: SysStatus.DONE })
       .addOrderBy('id', 'DESC')
       .getOne();
     if (_.isEmpty(info)) {
@@ -78,8 +86,8 @@ export class CirclesSysService extends BaseService {
   /**
    * 检查系统状态
    */
-   async checkStatus(nonce) {
-    let sysInfo = await this.circlesSysInfoEntity.findOne({nonce: nonce});
+  async checkStatus(nonce) {
+    let sysInfo = await this.circlesSysInfoEntity.findOne({ nonce: nonce });
     return !_.isEmpty(sysInfo) && sysInfo.status == SysStatus.DONE;
   }
 
@@ -122,6 +130,20 @@ export class CirclesSysService extends BaseService {
    */
   async start(id) {
     await this.circlesSysInfoEntity.update(id, { status: SysStatus.ALGO });
+  }
+
+  /**
+   * 计算完成的nonce列表
+   */
+  async list() {
+    const list = await this.circlesSysInfoEntity
+      .createQueryBuilder()
+      .select('id, nonce')
+      .where({ status: SysStatus.DONE })
+      .orderBy("id", "DESC")
+      .execute();
+    
+    return list;
   }
 
   async check() {

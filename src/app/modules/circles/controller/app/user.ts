@@ -1,5 +1,4 @@
-import { App, Inject, Post, Provide, Body } from '@midwayjs/decorator';
-import { Context } from 'egg';
+import { Inject, Post, Provide, Body } from '@midwayjs/decorator';
 import { CoolController, BaseController } from 'midwayjs-cool-core';
 import { CirclesUsersService } from '../../service/users'
 import { CirclesNeo4jService } from '../../service/neo4j'

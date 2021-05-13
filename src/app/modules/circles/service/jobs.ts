@@ -328,6 +328,7 @@ export class CirclesJobsService extends BaseService {
           'setReputation'
         )
         return await this.updateStep(jobs)
+      // 更新种子用户资料
       case 8:
         await this.saveAndStart(
           'circlesSeedsService',

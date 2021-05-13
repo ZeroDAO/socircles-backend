@@ -6,6 +6,7 @@ import { CirclesSeedsEntity } from '../entity/seeds';
 import { CirclesSeedsInfoEntity } from '../entity/seeds_info';
 import { CirclesTrustCountEntity } from '../entity/trust_count';
 import { CirclesUsersEntity } from '../entity/users';
+import { CirclesScoresEntity } from '../entity/scores';
 import { Utils } from '../../../comm/utils';
 import { Config } from '@midwayjs/decorator';
 import { Application } from 'egg';
@@ -18,6 +19,9 @@ import * as _ from 'lodash';
 export class CirclesSeedsService extends BaseService {
   @InjectEntityModel(CirclesSeedsEntity)
   seedsEntity: Repository<CirclesSeedsEntity>;
+
+  @InjectEntityModel(CirclesScoresEntity)
+  scoresEntity: Repository<CirclesScoresEntity>;
 
   @InjectEntityModel(CirclesUsersEntity)
   usersEntity: Repository<CirclesUsersEntity>;
@@ -43,13 +47,22 @@ export class CirclesSeedsService extends BaseService {
   // @Cache(5)
   async info() {
     // 获取seed集合
-    let seedSet = await this.seedsEntity
-      .createQueryBuilder()
-      .orderBy("id", "DESC")
-      .getOne();
+    let seedSet = await this.ids();
     return await this.trustCountEntity
       .findByIds(
-        seedSet.seeds.split(',')
+        seedSet
+      );
+  }
+
+  /**
+   * 种子用户得分
+   */
+  // @Cache(5)
+  async scores() {
+    let seedSet = await this.ids();
+    return await this.scoresEntity
+      .findByIds(
+        seedSet
       );
   }
 
@@ -117,13 +130,13 @@ export class CirclesSeedsService extends BaseService {
     });
 
     data.data.data.forEach(async (item, index) => {
-        let avatarUrl = item.avatarUrl;
-        await this.seedsInfoEntity.save({
-          id: newSeedsObj[item.safeAddress],
-          avatar: avatarUrl ? avatarUrl.slice(avatarUrl.lastIndexOf('/') + 1, avatarUrl.lenght) : null,
-          cid: item.id,
-          username: item.username,
-        })
+      let avatarUrl = item.avatarUrl;
+      await this.seedsInfoEntity.save({
+        id: newSeedsObj[item.safeAddress],
+        avatar: avatarUrl ? avatarUrl.slice(avatarUrl.lastIndexOf('/') + 1, avatarUrl.lenght) : null,
+        cid: item.id,
+        username: item.username,
+      })
     });
 
     return 'SEED INFO DONE';

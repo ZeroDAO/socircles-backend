@@ -74,7 +74,7 @@ export class CirclesAlgorithmsService extends BaseService {
       // 重新命名数据表
       await this.nativeQuery(`
         RENAME TABLE circles_scores TO circles_scores_${sys_info.nonce}`)
-
+      // 建立空表 scores
       await this.nativeQuery(`
       CREATE TABLE IF NOT EXISTS \`circles_scores\` (
         \`id\` int NOT NULL AUTO_INCREMENT COMMENT 'ID',
@@ -169,16 +169,19 @@ export class CirclesAlgorithmsService extends BaseService {
    * 设置种子用户声誉值
    */
   async setSeedsScore() {
-    const seedIds = await this.seeds.info();
+    const seedsScores = await this.seeds.scores();
     const sysInfo = await this.sys.info();
-    let seedsScores = [];
-    seedIds.forEach(seed => {
-      seedsScores.push({
+
+    let newSeedsInfo = seedsScores.map(seed => {
+      return {
         id: seed.id,
-        reputation: sysInfo.seed_score,
-      })
+        // 由于种子用户只计算了 seed-count - 1
+        // 因此加上少算的得分，以保证公平性
+        score: seed.reputation ? (seed.reputation * sysInfo.seed_count) / (sysInfo.seed_count - 1) : 0
+      }
     });
-    return await this.scoreEntity.save(seedsScores);
+    await this.scoreEntity.save(newSeedsInfo);
+    return `Seeds Count: ${seedsScores.length}`;
   }
 
   /**
@@ -207,7 +210,7 @@ export class CirclesAlgorithmsService extends BaseService {
 
   /**
    * 将种子用户路径cvs导入mysql
-   * 文件路径在neo4j安装文件夹下 /import/seed_path_${sid}.csv
+   * 文件路径默认在neo4j安装文件夹下 /import/seed_path_${sid}.csv
    *@param sid: 种子用户id
    */
   async importSeedPath(sid) {

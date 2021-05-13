@@ -5,6 +5,7 @@ import { Repository } from 'typeorm';
 import { CirclesAlgoRecordsEntity } from '../entity/algo_records';
 import { ICoolCache } from 'midwayjs-cool-core';
 import { CirclesSysService } from './sys';
+import { Utils } from '../../../comm/utils';
 import * as _ from 'lodash';
 
 /**
@@ -17,6 +18,9 @@ export class CirclesAlgoRecordsService extends BaseService {
 
     @Inject()
     sys: CirclesSysService;
+
+    @Inject()
+    utils:Utils;
 
     @Inject('cool:cache')
     coolCache: ICoolCache;
@@ -31,7 +35,8 @@ export class CirclesAlgoRecordsService extends BaseService {
             let nonce = null;
             if (!_.isEmpty(query)) {               
                 nonce = query.nonce;
-                if (!nonce || !await this.sys.checkStatus(nonce)) {
+
+                if (!nonce || !this.utils.isNmber(nonce) || !await this.sys.checkStatus(nonce)) {
                     throw new CoolCommException('参数错误或 nonce 状态不正确');
                 }
             } else {
