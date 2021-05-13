@@ -16,6 +16,7 @@ export default (appInfo: EggAppInfo) => {
     synchronize: false,
     // 打印日志
     logging: false,
+    neo4jDir: 'D:/neo4j/'
   };
 
   config.logger = {
@@ -23,6 +24,14 @@ export default (appInfo: EggAppInfo) => {
       consoleLevel: 'ERROR',
     },
   };
+
+  config.neo4j = {
+    client: {
+      url: 'bolt://127.0.0.1:7687',
+      username: 'neo4j',
+      password: '123456',
+    },
+  }
 
   // cool配置
   config.cool = {

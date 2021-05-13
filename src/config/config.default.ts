@@ -22,14 +22,6 @@ export default (appInfo: EggAppInfo) => {
     },
   };
 
-  config.neo4j = {
-    client: {
-      url: 'bolt://127.0.0.1:7687',
-      username: 'neo4j',
-      password: '123456',
-    },
-  }
-
   // thegraph 请求地址
   config.thegraph = {
     url: 'https://api.thegraph.com/subgraphs/name/circlesubi/circles'
