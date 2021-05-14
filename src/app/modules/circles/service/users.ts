@@ -1,5 +1,5 @@
 import { Inject, Provide } from '@midwayjs/decorator';
-import { BaseService, Cache, CoolCommException } from 'midwayjs-cool-core';
+import { BaseService, CoolCommException } from 'midwayjs-cool-core';
 import { InjectEntityModel } from '@midwayjs/orm';
 import { Repository } from 'typeorm';
 import { CirclesUsersEntity } from '../entity/users';
@@ -119,11 +119,15 @@ export class CirclesUsersService extends BaseService {
     let uid = await this.addressToId(address);
     if (!uid) return;
     let userInfo = await this.neo4j.userById(uid);
+    let _userInfo = {};
     if (!_.isEmpty(userInfo)) {
-      userInfo = this.neo4j.formatting(userInfo.records[0]._fields[0].properties);
+      // userInfo.records[0]._fields[0].properties
+      _userInfo = this.neo4j.formatting(userInfo.records[0],'properties');
     }
     let sysInfo = await this.sys.lastAlgo();
-    userInfo.nonce = sysInfo.nonce;
+    userInfo = Object.assign(userInfo,_userInfo,{
+      nonce: sysInfo.nonce
+    });
     return userInfo;
   }
 

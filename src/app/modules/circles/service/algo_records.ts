@@ -28,7 +28,7 @@ export class CirclesAlgoRecordsService extends BaseService {
     /**
      * 获取算法汇总信息
      */
-    // @Cache()
+    @Cache()
     async list(query?) {
         
         try {

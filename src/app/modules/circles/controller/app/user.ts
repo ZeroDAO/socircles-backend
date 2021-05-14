@@ -61,7 +61,8 @@ export class UserAppController extends BaseController {
     if (!_.isEmpty(res)) {
 
       
-    path = res.records[0]._fields[0].segments.map((s) => {
+    path = this.neo4j.resHead(res.records[0])
+      .segments.map((s) => {
         return s.start.properties.address;
       })
     }

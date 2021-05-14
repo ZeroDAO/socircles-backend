@@ -513,33 +513,6 @@ export class CirclesNeo4jService extends BaseService {
   }
 
   /**
-   * 返回NEO4J单条数据
-   *@param data: 获得的单条数据
-   */
-  resHead(data) {
-    console.log(data);
-
-    if (data) {
-      if (data[0]._fields) {
-        return data[0]._fields[0].low;
-      }
-    }
-    throw new CoolCommException('NEO4J ERR');
-  }
-
-  /**
-   * 格式化列表数据
-   *@param data: 
-   */
-  formatting(data) {
-    let res = {}
-    for (let key in data) {
-      res[key] = data[key].low || data[key];
-    }
-    return res;
-  }
-
-  /**
    * 返回Jdbc配置
    */
   getJdbcConfig() {
@@ -576,5 +549,33 @@ export class CirclesNeo4jService extends BaseService {
       MATCH p=shortestPath((start)-[:TRUST*..${cost}]->(end))
       RETURN p
     `)
+  }
+
+  /**
+   * 格式化列表数据
+   *@param data: 
+   */
+  formatting(data,lable = 'low') {
+    let res = {}
+    let headData = this.resHead(data,lable)
+    for (let key in data) {
+      res[key] = headData[key].low || headData[key];
+    }
+    return res;
+  }
+
+  /**
+   * 返回NEO4J单条数据
+   *@param data: 获得的单条数据
+   */
+  resHead(data, lable = null, i = 0) {
+
+    if (!data || !data._fields) {
+      throw new CoolCommException('NEO4J ERR');
+    }
+
+    let lableData = lable ? data._fields[i][lable] : data._fields[i];
+
+    return typeof(data.low) == 'undefined' ? lableData : lableData.low;
   }
 }

@@ -89,7 +89,7 @@ export class CirclesAlgorithmsService extends BaseService {
 
     let countData = await this.neo4j.getRwCount();
 
-    if (countData.records[0]._fields[0].low == 0) {
+    if (this.neo4j.resHead(countData.records[0]) == 0) {
       await this.neo4j.initRepuWeight();
       await this.neo4j.initRelWeight();
     }
@@ -141,7 +141,7 @@ export class CirclesAlgorithmsService extends BaseService {
     let seeds_neo = await this.neo4j.getSeeds(sys_info.seed_count);
     let seedsSet = [];
     seeds_neo.records.forEach(e => {
-      seedsSet.push(e._fields[0].low)
+      seedsSet.push(this.neo4j.resHead(e))
     });
 
     let seeds = await this.circlesSeedsEntity.save({
@@ -199,9 +199,7 @@ export class CirclesAlgorithmsService extends BaseService {
     const sysInfo = await this.sys.info();
     let rwAgg = {};
     rwData.records[0].keys.forEach((key, i) => {
-      let data = rwData.records[0]._fields[i];
-      console.log(data.low);
-      rwAgg[key] = typeof (data.low) == 'undefined' ? data : data.low;
+      rwAgg[key] = this.neo4j.resHead(rwData.records[0],null,i);
     });
     rwAgg['nonce'] = sysInfo.nonce;
     rwAgg['algo'] = 'reputation';

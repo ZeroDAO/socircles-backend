@@ -38,7 +38,7 @@ export class CirclesSysService extends BaseService {
   /**
    * 当前系统状态
    */
-  // @Cache()
+  @Cache()
   async info(nonce?) {
 
     if (nonce) {
@@ -60,7 +60,7 @@ export class CirclesSysService extends BaseService {
   /**
    * 获取最后一次成功计算的信息
    */
-  // @Cache()
+  @Cache()
   async lastAlgo() {
     let info = await this.circlesSysInfoEntity.createQueryBuilder()
       .where({ status: SysStatus.DONE })
