@@ -70,11 +70,11 @@ export class CirclesSysService extends BaseService {
   }
 
   /**
-   * 返回系统状态并检查是否在计算期
+   * 返回系统状态并确保处于计算状态
    */
   async infoAndCheckAlgo() {
     let sysInfo = await this.check();
-    if (sysInfo.status == SysStatus.DONE) {
+    if (sysInfo.status != SysStatus.ALGO) {
       throw new CoolCommException('不在计算状态');
     }
     return sysInfo;
@@ -92,8 +92,8 @@ export class CirclesSysService extends BaseService {
    * 返回系统状态并检查是否可采集数据
    */
   async infoAndCheckCrawler() {
-    let sysInfo = await this.check();
-    if (sysInfo.status != SysStatus.DONE) {
+    let sysInfo = await this.info();
+    if (!_.isEmpty(sysInfo) && sysInfo.status == SysStatus.ALGO) {
       throw new CoolCommException('正在计算中，不可更新');
     }
     return sysInfo;
