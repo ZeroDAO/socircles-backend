@@ -117,6 +117,7 @@ export class CirclesJobsService extends BaseService {
       every: every,
       service: 'circlesJobsService.watch()',
       taskType: 1,
+      name: 'JobsWatcher',
     })
 
     await this.jobsEntity.insert({
