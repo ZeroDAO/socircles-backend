@@ -113,7 +113,7 @@ export class CirclesJobsService extends BaseService {
     let sysInfo = await this.sys.infoAndCheckAlgo();
 
     let task = await this.taskInfoEntity.save({
-      jobId,
+      jobId: jobId,
       every: every,
       service: 'circlesJobsService.watch()',
       taskType: 1,
