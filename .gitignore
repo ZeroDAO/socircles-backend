@@ -14,7 +14,7 @@ run/
 .tsbuildinfo
 .tsbuildinfo.*
 src/app/public/uploads/
-src/config/config.prod
+src/config/config.prod.ts
 typings/
 .cache
 .serverless/
