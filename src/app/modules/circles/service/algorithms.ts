@@ -94,8 +94,6 @@ export class CirclesAlgorithmsService extends BaseService {
       await this.neo4j.initRelWeight();
     }
 
-    await this.neo4j.createGraph();
-
     await this.circlesSysInfoEntity.insert({
       nonce,
       seed_algo,
