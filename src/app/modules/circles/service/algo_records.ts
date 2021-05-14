@@ -1,5 +1,5 @@
 import { Inject, Provide } from '@midwayjs/decorator';
-import { BaseService, Cache, CoolCommException } from 'midwayjs-cool-core';
+import { BaseService, CoolCommException } from 'midwayjs-cool-core';
 import { InjectEntityModel } from '@midwayjs/orm';
 import { Repository } from 'typeorm';
 import { CirclesAlgoRecordsEntity } from '../entity/algo_records';
@@ -28,7 +28,6 @@ export class CirclesAlgoRecordsService extends BaseService {
     /**
      * 获取算法汇总信息
      */
-    @Cache()
     async list(query?) {
         
         try {

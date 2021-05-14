@@ -1,5 +1,5 @@
 import { Inject, Provide } from '@midwayjs/decorator';
-import { BaseService, Cache, CoolCommException } from 'midwayjs-cool-core';
+import { BaseService, CoolCommException } from 'midwayjs-cool-core';
 import { InjectEntityModel } from '@midwayjs/orm';
 import { Repository } from 'typeorm';
 import { CirclesSysInfoEntity } from '../entity/sys_info';
@@ -38,9 +38,7 @@ export class CirclesSysService extends BaseService {
   /**
    * 当前系统状态
    */
-  @Cache()
   async info(nonce?) {
-
     if (nonce) {
       // 检查
       if (!this.utils.isNmber(nonce)) {
@@ -60,7 +58,6 @@ export class CirclesSysService extends BaseService {
   /**
    * 获取最后一次成功计算的信息
    */
-  @Cache()
   async lastAlgo() {
     let info = await this.circlesSysInfoEntity.createQueryBuilder()
       .where({ status: SysStatus.DONE })

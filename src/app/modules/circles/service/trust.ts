@@ -82,8 +82,8 @@ export class CirclesTrustService extends BaseService {
     let userCount = 0;
     let relCount = 0;
     let logDetail = 'circles_' + Date.now() + Math.ceil(Math.random() * 1000);
-    const ctx = this.app.createAnonymousContext()
-    let circlesData = await ctx.curl(url, {
+
+    let circlesData = await this.app.curl(url, {
       method: 'POST',
       contentType: 'json',
       data: { "query": `{trustChanges(first: 1000 ${op}) {id,canSendTo,user,limitPercentage}}`, "variables": {} },

@@ -1,5 +1,5 @@
 import { Inject, Provide, App } from '@midwayjs/decorator';
-import { BaseService, Cache, CoolCommException } from 'midwayjs-cool-core';
+import { BaseService, CoolCommException } from 'midwayjs-cool-core';
 import { InjectEntityModel } from '@midwayjs/orm';
 import { Repository } from 'typeorm';
 import { CirclesSeedsEntity } from '../entity/seeds';
@@ -44,7 +44,6 @@ export class CirclesSeedsService extends BaseService {
   /**
    * 返回种子用户信任数据
    */
-  @Cache(5)
   async info() {
     // 获取seed集合
     let seedSet = await this.ids();
@@ -57,7 +56,6 @@ export class CirclesSeedsService extends BaseService {
   /**
    * 种子用户得分
    */
-  @Cache(5)
   async scores() {
     let seedSet = await this.ids();
     return await this.scoresEntity
@@ -70,7 +68,6 @@ export class CirclesSeedsService extends BaseService {
    * 当前种子用户 id
    *@returns [id]
    */
-  @Cache(5)
   async ids() {
     let seedSet = await this.seedsEntity
       .createQueryBuilder()
@@ -82,7 +79,6 @@ export class CirclesSeedsService extends BaseService {
   /**
    * 当前种子用户信息列表
    */
-  // @Cache(5)
   async list(nonce) {
     if (!this.utils.isNmber(nonce)) {
       throw new CoolCommException('参数不正确');
