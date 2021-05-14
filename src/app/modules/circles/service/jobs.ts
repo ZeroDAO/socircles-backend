@@ -122,6 +122,7 @@ export class CirclesJobsService extends BaseService {
 
     await this.jobsEntity.insert({
       id: sysInfo.nonce,
+      job_id: jobId,
       task_id: task.id,
       total_steps: TOTAL_SETPS,
     })
