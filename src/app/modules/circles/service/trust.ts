@@ -90,7 +90,7 @@ export class CirclesTrustService extends BaseService {
     let circlesData = await this.app.curl(url, {
       method: 'POST',
       contentType: 'json',
-      data: { "query": `{trustChanges(first: 10 ${op}) {id,canSendTo,user,limitPercentage}}`, "variables": {} },
+      data: { "query": `{trustChanges(first: 1000 ${op}) {id,canSendTo,user,limitPercentage}}`, "variables": {} },
       dataType: 'json'
     })
     let circlesDataCount = Object.keys(circlesData.data.data.trustChanges).length;
