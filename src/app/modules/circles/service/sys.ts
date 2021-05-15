@@ -81,6 +81,19 @@ export class CirclesSysService extends BaseService {
   }
 
   /**
+   * 返回系统状态并确保未处于完成状态
+   * 即可以重新开始任务
+   */
+  async infoAndCheckFail() {
+    let sysInfo = await this.check();
+    if (sysInfo.status == SysStatus.DONE) {
+      throw new CoolCommException('计算状态不符');
+    }
+    return sysInfo;
+  }
+
+
+  /**
    * 检查系统状态
    */
   async checkStatus(nonce) {
@@ -139,7 +152,7 @@ export class CirclesSysService extends BaseService {
       .where({ status: SysStatus.DONE })
       .orderBy("id", "DESC")
       .execute();
-    
+
     return list;
   }
 

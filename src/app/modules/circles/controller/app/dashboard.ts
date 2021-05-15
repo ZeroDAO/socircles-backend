@@ -1,6 +1,4 @@
-import { App, Inject, Provide } from '@midwayjs/decorator';
-import { IMidwayWebApplication } from '@midwayjs/web';
-import { Context } from 'egg';
+import { Provide } from '@midwayjs/decorator';
 import { CoolController, BaseController } from 'midwayjs-cool-core';
 import { CirclesAlgoRecordsEntity } from '../../entity/algo_records'
 import { CirclesAlgoRecordsService } from '../../service/algo_records'
@@ -14,14 +12,4 @@ import { CirclesAlgoRecordsService } from '../../service/algo_records'
   entity: CirclesAlgoRecordsEntity,
   service: CirclesAlgoRecordsService
 })
-export class DashboardAppController extends BaseController {
-
-  @Inject()
-  ctx: Context;
-
-  @App()
-  app: IMidwayWebApplication;
-
-  @Inject()
-  CirclesAlgoRecordsService: CirclesAlgoRecordsService;
-}
+export class DashboardAppController extends BaseController {}

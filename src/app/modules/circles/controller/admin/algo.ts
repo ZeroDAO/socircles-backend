@@ -89,6 +89,8 @@ export class CirclesAlgoController extends BaseController {
     return this.ok(await this.algo.finish());
   }
 
+  // TODO: Forced end
+
   /**
    * 完成任务
    */

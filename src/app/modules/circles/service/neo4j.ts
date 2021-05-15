@@ -64,12 +64,13 @@ export class CirclesNeo4jService extends BaseService {
   }
 
   /**
-   * 初始化空rw值为1，方便后期使用
+   * 初始化空rw值为0
+   * 防止 reputation 属性不存在
    */
   async initNoSetRepu() {
     await this.run(`
     MATCH (n:User)
-    WHERE n.reputation = null
+    WHERE n.reputation is null
     SET n.reputation = 0
     `)
   }
@@ -119,12 +120,11 @@ export class CirclesNeo4jService extends BaseService {
    * 查询图是否存在
    */
   async isExit() {
-    // `CALL gds.graph.exists('${Graph}') YIELD exists`;
-    let isExit = await this.run(`
-      CALL gds.graph.list('${Graph}')
-      YIELD graphName
+    let exitRes = await this.run(`
+      CALL gds.graph.exists('${Graph}')
+      YIELD exists
     `);
-    return !_.isEmpty(isExit.records);
+    return this.resHead(exitRes.records[0]);
   }
 
   /**
@@ -186,6 +186,7 @@ export class CirclesNeo4jService extends BaseService {
    *@param node: {id:1, address: '0x0000000000...'}
    */
   async createNode(node) {
+    node.reputation = 0;
     await this.run(`
       MERGE (n:User ${inspect(node)})
     `);
@@ -263,7 +264,6 @@ export class CirclesNeo4jService extends BaseService {
    * 计算 Graph 的 Betweenness 并写入
    */
   async betweennessWrite() {
-    await this.createGraphIfNotExit();
     return this.run(`
       CALL gds.betweenness.write('${Graph}', { writeProperty: 'betweenness' })
       YIELD centralityDistribution
@@ -293,7 +293,6 @@ export class CirclesNeo4jService extends BaseService {
    * 计算 Graph 的 PageRank 并返回大于0的值
    */
   async pageRank() {
-    await this.createGraphIfNotExit();
     return this.run(`
       CALL gds.pageRank.stream('${Graph}',{
         maxIterations: 20,
@@ -310,7 +309,6 @@ export class CirclesNeo4jService extends BaseService {
    * 计算PR并写入neo4j的节点属性
    */
   async pageRankWrite() {
-    await this.createGraphIfNotExit();
     return this.run(`
     CALL gds.pageRank.write('${Graph}', {
       maxIterations: 20,
@@ -438,7 +436,6 @@ export class CirclesNeo4jService extends BaseService {
    *@param uid: 需要计算的用户uid
    */
   async seedsPathFile(uid) {
-    await this.createGraphIfNotExit();
     return await this.run(`
       WITH "MATCH (source:User {uid: ${uid}})
       CALL gds.beta.allShortestPaths.dijkstra.stream('${Graph}', {
@@ -462,6 +459,7 @@ export class CirclesNeo4jService extends BaseService {
     let sys_info = await this.sys.info();
     return this.run(`
       MATCH (n:User)
+      WHERE n.${sys_info.seed_algo} > 0
       RETURN n.uid
       ORDER BY n.${sys_info.seed_algo} DESC
       LIMIT ${count}
@@ -555,9 +553,9 @@ export class CirclesNeo4jService extends BaseService {
    * 格式化列表数据
    *@param data: 
    */
-  formatting(data,lable = 'low') {
+  formatting(data, lable = 'low') {
     let res = {}
-    let headData = this.resHead(data,lable)
+    let headData = this.resHead(data, lable)
     for (let key in data) {
       res[key] = headData[key].low || headData[key];
     }
@@ -575,7 +573,7 @@ export class CirclesNeo4jService extends BaseService {
     }
 
     let lableData = lable ? data._fields[i][lable] : data._fields[i];
-
-    return typeof(data.low) == 'undefined' ? lableData : lableData.low;
+    
+    return typeof lableData.low == 'undefined' ? lableData : lableData.low;
   }
 }

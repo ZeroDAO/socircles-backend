@@ -205,18 +205,18 @@ export class TaskInfoService extends BaseService {
    * @param detail
    */
   async record(task, status, detail?) {
-    if (task.jobId == 'CIRCLES_ALGO' && task.type == 0) {
+    
+    if (task.name == 'CIRCLES_ALGO' && task.type == 0) {
       let sysInfo = await this.sys.info();
-      let job = await this.jobsEntity.findOne(sysInfo.nonce);
       if (status == 1) {
-        job.curr_sub_step += 1;
-      }else {
+        // 记录子任务完成信息到备注
+        await this.taskInfoEntity.update(task.id, { remark: '1' })
+      } else {
+        await this.jobsEntity.update(sysInfo.nonce, { status: status });
         await this.sys.fail(sysInfo.id);
       }
-      job.status = status;
-      await this.jobsEntity.update(sysInfo.nonce, job);
     }
-    
+
     await this.taskLogEntity.save({
       taskId: task.id,
       status,
@@ -276,7 +276,7 @@ export class TaskInfoService extends BaseService {
       [await this.getNextRunTime(jobId), jobId]
     );
   }
- 
+
   /**
    * 刷新任务状态
    */
@@ -309,7 +309,7 @@ export class TaskInfoService extends BaseService {
   async invokeService(serviceStr) {
     if (serviceStr) {
       const arr = serviceStr.split('.');
-      
+
       const service = await this.app.getApplicationContext().getAsync(arr[0]);
       for (const child of arr) {
         if (child.includes('(')) {

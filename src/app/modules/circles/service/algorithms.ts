@@ -86,6 +86,7 @@ export class CirclesAlgorithmsService extends BaseService {
     }
 
     await this.users.delAlgoUserList();
+    await this.neo4j.dropGraph();
 
     let countData = await this.neo4j.getRwCount();
 
@@ -107,16 +108,15 @@ export class CirclesAlgorithmsService extends BaseService {
   /**
    * 设置声誉值
    */
-  async setReputation() {
-    return await this.neo4j.setReputation();
+  async updateRelWeight() {
+    return await this.neo4j.updateRelWeight();
   }
 
   /**
-   * 更新路径权重
+   * 初始化路径权重
    */
-  async updateRelWeight() {
-    await this.neo4j.initNoSetRepu();
-    return await this.neo4j.updateRelWeight();
+  async setReputation() {
+    return await this.neo4j.setReputation();
   }
 
   /**
@@ -190,14 +190,22 @@ export class CirclesAlgorithmsService extends BaseService {
   }
 
   /**
+   * 创建Graph
+   */
+  async createGraphIfNotExit() {
+    return await this.neo4j.createGraphIfNotExit();
+  }
+
+  /**
    * 更新rw汇总数据
    */
   async aggregatingRw() {
     const rwData = await this.neo4j.aggregating('reputation');
     const sysInfo = await this.sys.info();
     let rwAgg = {};
+    // return rwData.records[0];
     rwData.records[0].keys.forEach((key, i) => {
-      rwAgg[key] = this.neo4j.resHead(rwData.records[0],null,i);
+      rwAgg[key] = this.neo4j.resHead(rwData.records[0], null, i);
     });
     rwAgg['nonce'] = sysInfo.nonce;
     rwAgg['algo'] = 'reputation';
