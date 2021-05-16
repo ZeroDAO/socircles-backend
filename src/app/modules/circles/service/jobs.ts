@@ -138,20 +138,18 @@ export class CirclesJobsService extends BaseService {
     let sysInfo = await this.sys.info();
     let jobs = await this.jobsEntity.findOne(sysInfo.nonce);
     if (jobs.status == 0) {
-      return await this.stopWatchTask(jobs);
+      return await this._stopWatchTask(jobs);
     }
-    let curr_sub_step = await this.taskInfoEntity.count({
-      jobId: this.makeSubJobId(jobs.job_id, jobs.curr_step),
-      remark: '1'
-    });
+
+    let curr_sub_step = await this._getSubJobsDone(jobs);
 
     if (jobs.total_sub_step <= curr_sub_step || jobs.total_sub_step <= jobs.curr_sub_step) {
-      return await this.nextStep(jobs);
+      return await this._nextStep(jobs);
     }
 
-    await this.jobsEntity.update(jobs.id, { curr_sub_step: curr_sub_step });
+    await this._updateSubStep(jobs, curr_sub_step);
 
-    return `WATING... ${jobs.curr_step} / ${jobs.total_steps} - ${jobs.curr_sub_step} / ${jobs.total_sub_step}`;
+    return `WATING... ${jobs.curr_step} / ${jobs.total_steps} - ${curr_sub_step} / ${jobs.total_sub_step}`;
   }
 
   /**
@@ -170,15 +168,9 @@ export class CirclesJobsService extends BaseService {
   }
 
   /**
-   * 调度任务停止
-   */
-  async stopWatchTask(jobs) {
-    await this.taskInfoService.stop(jobs.task_id);
-    return `STOP TASK: ${jobs.task_id}`
-  }
-
-  /**
    * 发出停止信号
+   * 任务并不立即停止，而是在下一个job停止
+   * 以便于统计仍在进行中的任务信息
    */
   async stopWatch() {
     let sysInfo = await this.sys.infoAndCheckAlgo();
@@ -188,8 +180,35 @@ export class CirclesJobsService extends BaseService {
   }
 
   /**
-   * 恢复启动 watch
-   * Warring: 并不回滚数据
+   * 继续任务，并重新开始失败任务
+   */
+  async recover() {
+    let sysInfo = await this.sys.infoAndCheckFail();
+    let jobs = await this.jobsEntity.findOne(sysInfo.nonce);
+
+    const jobId = this._makeSubJobId(jobs.job_id, jobs.curr_sub_step);
+    let tasks = await this.taskInfoEntity.find({
+      remark: null,
+      jobId: jobId
+    });
+
+    await this.jobsEntity.update(sysInfo.nonce, {
+      status: 1,
+    });
+
+    await this.sys.start(sysInfo.id);
+    await this.taskInfoService.start(jobs.task_id);
+
+    if (_.isEmpty(tasks)) return;
+
+    tasks.forEach(async (task) => {
+      await this.taskInfoService.once(task.id);
+    })
+  }
+
+  /**
+   * 回退一步任务并重新开始
+   * Warring: 并不回滚任务获得的数据
    */
   async regainWatch() {
     let sysInfo = await this.sys.infoAndCheckFail();
@@ -204,7 +223,7 @@ export class CirclesJobsService extends BaseService {
     });
 
     await this.taskInfoEntity.delete({
-      jobId: this.makeSubJobId(jobs.job_id, jobs.curr_step)
+      jobId: this._makeSubJobId(jobs.job_id, jobs.curr_step)
     })
 
     await this.sys.start(sysInfo.id);
@@ -222,16 +241,6 @@ export class CirclesJobsService extends BaseService {
       every: every
     })
     await this.taskInfoService.start(jobs.task_id);
-  }
-
-  /**
-   * 更新步骤信息
-   */
-  async updateStep(jobs, total_sub_step = 1) {
-    jobs.curr_step += 1;
-    jobs.curr_sub_step = 0;
-    jobs.total_sub_step = total_sub_step;
-    await this.jobsEntity.update(jobs.id, jobs);
   }
 
   /**
@@ -254,16 +263,28 @@ export class CirclesJobsService extends BaseService {
   }
 
   /**
+   * 更新步骤信息
+   */
+  async _updateStep(jobs, total_sub_step = 1) {
+    jobs.curr_step += 1;
+    jobs.curr_sub_step = 0;
+    jobs.total_sub_step = total_sub_step;
+    await this.jobsEntity.update(jobs.id, jobs);
+  }
+
+  /**
    * 任务监测和调度
    */
-  async nextStep(jobs) {
+  async _nextStep(jobs) {
     // 开始下一轮任务
     let seedIds = null;
     let taskDatas = [];
     let subJobsCount = 1;
+    
     switch (jobs.curr_step) {
       // 初始化rw值
       case 0:
+        
         taskDatas.push({
           serv: 'circlesAlgorithmsService',
           func: 'initNoSetRepu'
@@ -374,38 +395,68 @@ export class CirclesJobsService extends BaseService {
         })
         break;
       default:
-        await this.jobsEntity.update(jobs.id,{
-          curr_sub_step: jobs.total_sub_step
-        });
-        await this.stopWatchTask(jobs);
+        await this._stopWatchTask(jobs);
         return `DONE AT STEP: ${jobs.curr_step}`;
     }
-    await this.updateStep(jobs, subJobsCount);
+
+    await this._updateStep(jobs, subJobsCount);
+
     taskDatas.forEach(async (taskData) => {
       taskData.job = jobs;
-      await this.saveAndStart(taskData)
+      await this._saveAndStart(taskData)
     })
     return `NEXT SETP: ${jobs.curr_step}`;
   }
 
-  async saveAndStart(taskData) {
+  async _saveAndStart(taskData) {
     let { job, serv, func, params } = taskData;
 
-    let service = this.makeService(serv, func, typeof params == 'undefined' ? '' : JSON.stringify(params));
+    let service = this._makeService(serv, func, typeof params == 'undefined' ? '' : JSON.stringify(params));
     let task = await this.taskInfoEntity.save({
       name: `CIRCLES_ALGO`,
-      jobId: this.makeSubJobId(job.job_id, job.curr_step),
+      jobId: this._makeSubJobId(job.job_id, job.curr_step),
       service,
       taskType: 1,
     });
     await this.taskInfoService.once(task.id);
   }
 
-  makeService(serv, func, params) {
+  _makeService(serv, func, params) {
     return `${serv}.${func}(${params})`
   }
 
-  makeSubJobId(job_id, step) {
+  _makeSubJobId(job_id, step) {
     return `${job_id}_${step}`
+  }
+
+  /**
+ * 调度任务停止
+ */
+  async _stopWatchTask(jobs) {
+    await this.taskInfoService.stop(jobs.task_id);
+    await this._updateSubStep(jobs);
+    return `STOP TASK: ${jobs.task_id}`
+  }
+
+  /**
+   * 获取成功子任务
+   */
+  async _getSubJobsDone(jobs) {
+    return await this.taskInfoEntity.count({
+      jobId: this._makeSubJobId(jobs.job_id, jobs.curr_step),
+      remark: '1'
+    });
+  }
+
+  /**
+   * 更新子任务进度
+   */
+  async _updateSubStep(jobs, currSubStep = null) {
+    if (!currSubStep) {
+      currSubStep = await this._getSubJobsDone(jobs);
+    }
+    await this.jobsEntity.update(jobs.id, {
+      curr_sub_step: currSubStep
+    });
   }
 }

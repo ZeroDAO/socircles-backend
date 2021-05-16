@@ -120,6 +120,7 @@ export class CirclesUsersService extends BaseService {
     if (!uid) return;
     let userInfo = await this.neo4j.userById(uid);
     let _userInfo = {};
+    
     if (!_.isEmpty(userInfo)) {
       // userInfo.records[0]._fields[0].properties
       _userInfo = this.neo4j.formatting(userInfo.records[0],'properties');
@@ -130,6 +131,7 @@ export class CirclesUsersService extends BaseService {
     });
     return userInfo;
   }
+
 
   checkAddress(address) {
     if (!this.utils.isEthAddress(address)) {

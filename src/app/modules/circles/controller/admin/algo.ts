@@ -74,12 +74,20 @@ export class CirclesAlgoController extends BaseController {
   }
 
   /**
-   * 恢复任务
+   * 回退任务
    */
   @Post('/regain')
   async regain() {
     return this.ok(await this.jobsService.regainWatch());
   }
+
+  /**
+   * 开始任务并恢复失败子任务
+   */
+   @Post('/recover')
+   async recover() {
+     return this.ok(await this.jobsService.recover());
+   }
 
   /**
    * 完成任务
@@ -89,13 +97,13 @@ export class CirclesAlgoController extends BaseController {
     return this.ok(await this.algo.finish());
   }
 
-  // TODO: Forced end
-
   /**
-   * 完成任务
+   * 设置任务轮询周期
    */
   @Post('/set_algo_every')
   async setAlgoEvery(@Body() every: number) {
     return this.ok(await this.jobsService.setAlgoEvery(every));
   }
+
+  // TODO: 强制结束
 }

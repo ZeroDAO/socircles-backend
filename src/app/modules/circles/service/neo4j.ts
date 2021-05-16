@@ -471,6 +471,7 @@ export class CirclesNeo4jService extends BaseService {
    */
   async setReputation() {
     await this.initRepuWeight();
+    await this.loadDriver();
     return await this.run(`
     CALL apoc.load.jdbc(
       '${this.getJdbcConfig()}',
@@ -478,6 +479,16 @@ export class CirclesNeo4jService extends BaseService {
     ) YIELD row
     MATCH (n:User {uid: row.id})
     SET n.reputation = row.reputation
+    `);
+  }
+
+  /**
+   * 加载同步驱动
+   */
+  async loadDriver() {
+    await this.initRepuWeight();
+    return await this.run(`
+    call apoc.load.driver('com.mysql.jdbc.Driver')
     `);
   }
 
@@ -518,7 +529,7 @@ export class CirclesNeo4jService extends BaseService {
       throw new CoolCommException('Database Mysql Mismatch');
     }
     let mysql = this.ormConf;
-    return `jdbc:mysql://${mysql.host}/${mysql.database}?useSSL=false&user=${mysql.username}&password=${mysql.password}&useUnicode=true&characterEncoding=utf8&serverTimezone=UTC`
+    return `jdbc:mysql://${mysql.host}/${mysql.database}?&user=${mysql.username}&password=${mysql.password}&useUnicode=true&characterEncoding=utf8&serverTimezone=UTC`
   }
 
   /**
@@ -553,11 +564,11 @@ export class CirclesNeo4jService extends BaseService {
    * 格式化列表数据
    *@param data: 
    */
-  formatting(data, lable = 'low') {
+  formatting(data, lable = null) {
     let res = {}
-    let headData = this.resHead(data, lable)
-    for (let key in data) {
-      res[key] = headData[key].low || headData[key];
+    let fields = lable ? data._fields[0][lable] : data._fields[0];
+    for (let key in fields) {
+      res[key] = typeof fields[key].low == 'undefined' ? fields[key] : fields[key].low;
     }
     return res;
   }
@@ -571,9 +582,9 @@ export class CirclesNeo4jService extends BaseService {
     if (!data || !data._fields) {
       throw new CoolCommException('NEO4J ERR');
     }
-
+    // userInfo.records[0]._fields[0].properties
     let lableData = lable ? data._fields[i][lable] : data._fields[i];
-    
+
     return typeof lableData.low == 'undefined' ? lableData : lableData.low;
   }
 }
