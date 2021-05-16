@@ -7,6 +7,6 @@ import { Column } from 'typeorm';
  */
 @EntityModel('circles_seeds')
 export class CirclesSeedsEntity extends BaseEntity {
-  @Column()
+  @Column({length: 21000})
   seeds: string;
 }
