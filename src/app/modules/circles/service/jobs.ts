@@ -183,10 +183,15 @@ export class CirclesJobsService extends BaseService {
    * 继续任务，并重新开始失败任务
    */
   async recover() {
-    let sysInfo = await this.sys.infoAndCheckFail();
+    let sysInfo = await this.sys.info();
     let jobs = await this.jobsEntity.findOne(sysInfo.nonce);
 
+    if (jobs.status == 1) {
+      throw new CoolCommException('Jobs is already in progress');
+    }
+
     const jobId = this._makeSubJobId(jobs.job_id, jobs.curr_sub_step);
+
     let tasks = await this.taskInfoEntity.find({
       remark: null,
       jobId: jobId
