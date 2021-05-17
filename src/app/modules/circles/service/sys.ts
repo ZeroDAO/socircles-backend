@@ -40,10 +40,6 @@ export class CirclesSysService extends BaseService {
    */
   async info(nonce?) {
     if (nonce) {
-      // 检查
-      if (!this.utils.isNmber(nonce)) {
-        throw new CoolCommException('参数错误或 nonce 状态不正确');
-      }
       return await this.circlesSysInfoEntity.findOne({
         nonce: nonce,
         status: SysStatus.DONE
@@ -67,6 +63,19 @@ export class CirclesSysService extends BaseService {
       throw new CoolCommException('未找到成功计算数据');
     }
     return info;
+  }
+
+  /**
+   * 获取计算成功的系统状态
+   */
+  async done_info(nonce?) {
+    if (nonce) {
+      return await this.circlesSysInfoEntity.findOne({
+        nonce: nonce,
+        status: SysStatus.DONE
+      });
+    }
+    return this.lastAlgo();
   }
 
   /**
