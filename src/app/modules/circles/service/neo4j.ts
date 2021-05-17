@@ -529,7 +529,7 @@ export class CirclesNeo4jService extends BaseService {
       throw new CoolCommException('Database Mysql Mismatch');
     }
     let mysql = this.ormConf;
-    return `jdbc:mysql://${mysql.host}/${mysql.database}?&user=${mysql.username}&password=${mysql.password}&useUnicode=true&characterEncoding=utf8&serverTimezone=UTC`
+    return `jdbc:mysql://${mysql.host}/${mysql.database}?useSSL=false&user=${mysql.username}&password=${mysql.password}&useUnicode=true&characterEncoding=utf8&serverTimezone=UTC`
   }
 
   /**
