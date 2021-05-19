@@ -10,6 +10,7 @@ import { CirclesSysService } from './sys';
 import { CirclesSeedsService } from './seeds';
 import { CirclesUsersService } from './users';
 import { CirclesNeo4jService } from './neo4j';
+import { Config } from '@midwayjs/decorator';
 
 import * as _ from 'lodash';
 
@@ -44,6 +45,9 @@ export class CirclesJobsService extends BaseService {
 
   @Inject()
   neo4j: CirclesNeo4jService;
+
+  @Config('supportAlgo')
+  supportAlgo;
 
   /**
    * 调用测试
@@ -312,15 +316,7 @@ export class CirclesJobsService extends BaseService {
         break;
       // 中心度计算
       case 3:
-        let algos = [
-          'betweenness',
-          'pageRank',
-          'articleRank',
-          'degree',
-          'harmonic',
-          'eigenvector',
-          'closeness'
-        ];
+        let algos = this.supportAlgo;
         algos.forEach(async algo => {
           taskDatas.push({
             serv: 'circlesAlgorithmsService',
@@ -457,7 +453,7 @@ export class CirclesJobsService extends BaseService {
       taskData.job = jobs;
       await this._saveAndStart(taskData)
     })
-    
+
     return `NEXT SETP: ${jobs.curr_step}`;
   }
 

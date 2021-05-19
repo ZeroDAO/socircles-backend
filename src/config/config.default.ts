@@ -32,6 +32,17 @@ export default (appInfo: EggAppInfo) => {
     url: 'https://api.circles.garden/api/'
   }
 
+  // 支持的算法列表
+  config.supportAlgo = [
+    'betweenness',
+    'pageRank',
+    'articleRank',
+    'degree',
+    'harmonic',
+    'eigenvector',
+    'closeness'
+  ];
+
   // 靜態目錄及緩存設置
   config.static = {
     prefix: '',

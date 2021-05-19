@@ -9,6 +9,7 @@ import { CirclesFameEntity } from '../entity/fame';
 import { CirclesUsersEntity } from '../entity/users';
 import { CirclesScoresEntity } from '../entity/scores';
 import { CirclesSysService } from './sys'
+import { CirclesNeo4jService } from './neo4j'
 import { Utils } from '../../../comm/utils';
 import { Config } from '@midwayjs/decorator';
 import { Application } from 'egg';
@@ -41,6 +42,9 @@ export class CirclesSeedsService extends BaseService {
   utils: Utils;
 
   @Inject()
+  neo4j: CirclesNeo4jService;
+
+  @Inject()
   sys: CirclesSysService;
 
   @Config('circlesApi')
@@ -48,6 +52,9 @@ export class CirclesSeedsService extends BaseService {
 
   @App()
   app: Application;
+
+  @Config('supportAlgo')
+  supportAlgo;
 
   /**
    * 返回种子用户信任数据
@@ -117,8 +124,21 @@ export class CirclesSeedsService extends BaseService {
    * 爬取当前种子用户信息列表
    */
   async getSeedsInfo() {
-    const seedsIds = await this.ids();
-    let seedsInfo = await this.usersEntity.findByIds(seedsIds);
+    let userIds = await this.ids();
+    let supportAlgo = this.supportAlgo;
+
+    supportAlgo.forEach(async e => {
+      let topUsers = await this.neo4j.top(e, 20);
+      topUsers.records.forEach(topUser => {
+        const u = this.neo4j.resHead(topUser);
+        if (userIds.indexOf(u) === -1) {
+          supportAlgo.push(u);
+        }
+      });
+    });
+
+    let seedsInfo = await this.usersEntity.findByIds(userIds);
+    
     // 直接拼接字符串
     let url = this.circlesApi.url + 'users?';
     let newSeedsObj = {};

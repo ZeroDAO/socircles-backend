@@ -456,14 +456,12 @@ export class CirclesNeo4jService extends BaseService {
   `)
   }
 
+
+  /**
+   * 将Rw数据批量导入neo4j
+   */
   async getSeeds(count) {
-    return this.run(`
-      MATCH (n:User)
-      WHERE n.fame > 0
-      RETURN n.uid
-      ORDER BY n.fame DESC
-      LIMIT ${count}
-    `)
+    return await this.top('fame', count);
   }
 
   /**
@@ -503,9 +501,23 @@ export class CirclesNeo4jService extends BaseService {
    * 移除全部节点属性
    *@param name 需要移除的几点属性
    */
-  async remove(name) {
+  async remove(property) {
     // 清空节点name属性
-    await this.run(`MATCH (n:User) REMOVE n.${name}`);
+    await this.run(`MATCH (n:User) REMOVE n.${property}`);
+  }
+
+  /**
+   * 获取算法top用户
+   *@param property 属性名称
+   *@param count 用户数量
+   */
+  async top(property, count = 20) {
+    return await this.run(`
+      MATCH (n:User)
+      WHERE n.${property} > 0
+      RETURN n.uid
+      ORDER BY n.${property} DESC
+      LIMIT ${count}`);
   }
 
   /**
