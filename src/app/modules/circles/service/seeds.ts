@@ -5,8 +5,10 @@ import { Repository } from 'typeorm';
 import { CirclesSeedsEntity } from '../entity/seeds';
 import { CirclesSeedsInfoEntity } from '../entity/seeds_info';
 import { CirclesTrustCountEntity } from '../entity/trust_count';
+import { CirclesFameEntity } from '../entity/fame';
 import { CirclesUsersEntity } from '../entity/users';
 import { CirclesScoresEntity } from '../entity/scores';
+import { CirclesSysService } from './sys'
 import { Utils } from '../../../comm/utils';
 import { Config } from '@midwayjs/decorator';
 import { Application } from 'egg';
@@ -32,8 +34,14 @@ export class CirclesSeedsService extends BaseService {
   @InjectEntityModel(CirclesSeedsInfoEntity)
   seedsInfoEntity: Repository<CirclesSeedsInfoEntity>;
 
+  @InjectEntityModel(CirclesFameEntity)
+  fameEntity: Repository<CirclesFameEntity>;
+
   @Inject()
   utils: Utils;
+
+  @Inject()
+  sys: CirclesSysService;
 
   @Config('circlesApi')
   circlesApi;
@@ -136,5 +144,28 @@ export class CirclesSeedsService extends BaseService {
     });
 
     return 'SEED INFO DONE';
+  }
+
+  /**
+   * 获取名人堂用户并加入种子表
+   */
+  async setFames() {
+    const fame = await this.fameEntity.find({ status: 1 });
+    const fameArr = fame.map(x => { return x.id });
+    let sysInfo = await this.sys.infoAndCheckAlgo();
+    await this.seedsEntity.update(sysInfo.nonce, {
+      fame: fameArr.toString()
+    })
+  }
+
+  /**
+   * 返回名人堂 ids
+   */
+  async fameIds() {
+    let seedSet = await this.seedsEntity
+    .createQueryBuilder()
+    .orderBy("id", "DESC")
+    .getOne();
+  return seedSet.fame.split(',');
   }
 }

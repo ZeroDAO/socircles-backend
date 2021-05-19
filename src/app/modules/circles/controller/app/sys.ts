@@ -33,7 +33,7 @@ export class SysAppController extends BaseController {
     if (nonce && !this.utils.isNmber(nonce)) {
       throw new CoolCommException('参数错误或 nonce 状态不正确');
     }
-    return this.ok(await this.sys.done_info(nonce));
+    return this.ok(await this.sys.doneInfo(nonce));
   }
 
   /**

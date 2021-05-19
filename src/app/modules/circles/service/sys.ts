@@ -68,7 +68,7 @@ export class CirclesSysService extends BaseService {
   /**
    * 获取计算成功的系统状态
    */
-  async done_info(nonce?) {
+  async doneInfo(nonce?) {
     if (nonce) {
       return await this.circlesSysInfoEntity.findOne({
         nonce: nonce,

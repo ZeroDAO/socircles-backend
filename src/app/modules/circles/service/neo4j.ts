@@ -435,12 +435,12 @@ export class CirclesNeo4jService extends BaseService {
    * 返回计算统计
    *@param uid: 需要计算的用户uid
    */
-  async seedsPathFile(uid) {
+  async pathFile(uid, prefix = 'seed', weight?) {
     return await this.run(`
       WITH "MATCH (source:User {uid: ${uid}})
       CALL gds.beta.allShortestPaths.dijkstra.stream('${Graph}', {
         sourceNode: id(source),
-        relationshipWeightProperty: 'weight'
+        relationshipWeightProperty: ${weight ? weight : 'weight'}
       })
       YIELD sourceNode, targetNode, totalCost, nodeIds, costs
       WHERE size(nodeIds) < 6
@@ -448,20 +448,20 @@ export class CirclesNeo4jService extends BaseService {
       gds.util.asNode(sourceNode).uid AS sid,
       gds.util.asNode(targetNode).uid AS tid,
       [nodeId IN nodeIds | gds.util.asNode(nodeId).uid] AS nids,
+      totalCost,
       costs" AS query
-    CALL apoc.export.csv.query(query, "seed_path_${uid}.csv", {})
+    CALL apoc.export.csv.query(query, "${prefix}_path_${uid}.csv", {})
     YIELD file, source,nodes, relationships, time, rows, batchSize, batches, done, data
     RETURN file, source,nodes, relationships, time, rows, batchSize, batches, done, data;
   `)
   }
 
   async getSeeds(count) {
-    let sys_info = await this.sys.info();
     return this.run(`
       MATCH (n:User)
-      WHERE n.${sys_info.seed_algo} > 0
+      WHERE n.fame > 0
       RETURN n.uid
-      ORDER BY n.${sys_info.seed_algo} DESC
+      ORDER BY n.fame DESC
       LIMIT ${count}
     `)
   }
@@ -480,6 +480,32 @@ export class CirclesNeo4jService extends BaseService {
     MATCH (n:User {uid: row.id})
     SET n.reputation = row.reputation
     `);
+  }
+
+  /**
+   * 将名人堂路径数据导入neo4j并计算权重
+   */
+  async setFame(algo) {
+    // 清空节点fame属性
+    await this.remove('fame')
+    await this.loadDriver();
+    return await this.run(`
+    CALL apoc.load.jdbc(
+      '${this.getJdbcConfig()}',
+      'select id, cost from circles_fame_cost'
+    ) YIELD row
+    MATCH (n:User {uid: row.id})
+    SET n.fame = row.${algo} / row.fame
+    `);
+  }
+
+  /**
+   * 移除全部节点属性
+   *@param name 需要移除的几点属性
+   */
+  async remove(name) {
+    // 清空节点name属性
+    await this.run(`MATCH (n:User) REMOVE n.${name}`);
   }
 
   /**

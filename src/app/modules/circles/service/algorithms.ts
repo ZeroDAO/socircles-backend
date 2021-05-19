@@ -11,6 +11,7 @@ import { CirclesScoresEntity } from '../entity/scores';
 import { CirclesTrustCountEntity } from '../entity/trust_count';
 import { CirclesAlgoRecordsEntity } from '../entity/algo_records';
 import { CirclesSysInfoEntity } from '../entity/sys_info';
+import { CirclesFameCostEntity } from '../entity/fame_cost';
 import { ICoolCache } from 'midwayjs-cool-core';
 import { Context } from 'egg';
 import { CirclesNeo4jService } from './neo4j';
@@ -36,6 +37,9 @@ export class CirclesAlgorithmsService extends BaseService {
 
   @InjectEntityModel(CirclesScoresEntity)
   scoreEntity: Repository<CirclesScoresEntity>;
+
+  @InjectEntityModel(CirclesFameCostEntity)
+  fameCostEntity: Repository<CirclesFameCostEntity>;
 
   @InjectEntityModel(CirclesAlgoRecordsEntity)
   algoRecordsEntity: Repository<CirclesAlgoRecordsEntity>;
@@ -153,7 +157,14 @@ export class CirclesAlgorithmsService extends BaseService {
    * 计算种子路径至其他所有节点最短路径并生成cvs
    */
   async getSeedPath(sid) {
-    return await this.neo4j.seedsPathFile(sid);
+    return await this.neo4j.pathFile(sid);
+  }
+
+  /**
+   * 计算种子路径至其他所有节点最短路径并生成cvs
+   */
+  async getFamePath(uid) {
+    return await this.neo4j.pathFile(uid, 'fame', 1);
   }
 
   /**
@@ -215,20 +226,28 @@ export class CirclesAlgorithmsService extends BaseService {
   /**
    * 将种子用户路径cvs导入mysql
    * 文件路径默认在neo4j安装文件夹下 /import/seed_path_${sid}.csv
-   *@param sid: 种子用户id
+   *@param sid: 源节点用户uid
    */
-  async importSeedPath(sid) {
+  async importCsvPath(sid, type = 'seed') {
     return await this.nativeQuery(`
-      LOAD DATA INFILE '${this.ormConf.neo4jDir}/import/seed_path_${sid}.csv'
+      LOAD DATA INFILE '${this.ormConf.neo4jDir}/import/${type}_path_${sid}.csv'
       INTO TABLE circles_path
       FIELDS TERMINATED BY ','
       ENCLOSED BY '"'
       LINES TERMINATED BY '\n'
       IGNORE 2 ROWS
-      (\`SID\`, \`TID\`, \`NIDS\`, \`COSTS\`)
+      (\`SID\`, \`TID\`, \`NIDS\`, \`COSTS\`,\`TOTALCOST\`)
     `);
   }
 
+  /**
+   * 导入名人堂路径数据到mysql
+   * 文件路径默认在neo4j安装文件夹下 /import/fame_path_${sid}.csv
+   *@param sid: 源节点用户uid
+   */
+  async importFamePath(sid) {
+    return await this.importCsvPath(sid, 'fame');
+  }
 
   /**
    * 批量计算 RW
@@ -274,6 +293,26 @@ export class CirclesAlgorithmsService extends BaseService {
       })
 
     await this.scoreEntity.save(res);
+  }
+
+  /**
+   * 计算其他节点到名人堂距离
+   */
+  async fameCost() {
+    const cost = await this.pathEntity.createQueryBuilder()
+      .groupBy('tid')
+      .select("SUM(totalCost)", "cost")
+      .getRawMany();
+    await this.fameCostEntity.save(cost);
+  }
+
+  /**
+   * 计算其他节点到名人堂距离
+   *@param algo 种子算法名称
+   */
+  async setFame() {
+    let sysInfo = await this.sys.infoAndCheckAlgo();
+    await this.neo4j.setFame(sysInfo.seed_algo);
   }
 
   /**

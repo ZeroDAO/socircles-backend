@@ -14,7 +14,7 @@ import { CirclesNeo4jService } from './neo4j';
 import * as _ from 'lodash';
 
 const COLLECTION_SERVICE = 'circlesTrustService.collection()';
-const TOTAL_SETPS = 11;
+const TOTAL_SETPS = 16;
 
 /**
  * 用户
@@ -196,7 +196,7 @@ export class CirclesJobsService extends BaseService {
       remark: null,
       jobId: jobId
     });
-    
+
     await this.jobsEntity.update(sysInfo.nonce, {
       status: 1,
     });
@@ -285,11 +285,12 @@ export class CirclesJobsService extends BaseService {
     let seedIds = null;
     let taskDatas = [];
     let subJobsCount = 1;
-    
+    const fameIds = await this.seeds.fameIds();
+
     switch (jobs.curr_step) {
       // 初始化rw值
       case 0:
-        
+
         taskDatas.push({
           serv: 'circlesAlgorithmsService',
           func: 'initNoSetRepu'
@@ -329,15 +330,61 @@ export class CirclesJobsService extends BaseService {
         });
         subJobsCount = algos.length
         break;
-      // 从neo4j获取种子
+      // 获取名人堂用户并写入数据库
       case 4:
+        taskDatas.push({
+          serv: 'circlesSeedsService',
+          func: 'setFames'
+        })
+        break;
+      // 计算名人堂用户到其他各点距离导出到cvs
+      case 5:
+        fameIds.forEach(async uid => {
+          taskDatas.push({
+            serv: 'circlesAlgorithmsService',
+            func: 'getFamePath',
+            params: uid
+          })
+        });
+        subJobsCount = fameIds.length
+        break;
+      // 将名人堂cvs导入路径数据库
+      case 6:
+        await this.nativeQuery(`truncate table circles_path`);
+        fameIds.forEach(async uid => {
+          taskDatas.push({
+            serv: 'circlesAlgorithmsService',
+            func: 'importFamePath',
+            params: uid
+          })
+        });
+        subJobsCount = fameIds.length;
+        break;
+      // 计算各点距名人堂路径总和
+      case 7:
+        taskDatas.push({
+          serv: 'circlesAlgorithmsService',
+          func: 'fameCost'
+        })
+        break;
+      // 将mysl路径数据导入到neo4j，并计算相应加权值
+      case 8:
+        taskDatas.push({
+          serv: 'circlesAlgorithmsService',
+          func: 'setFame'
+        })
+        break;
+      // 从neo4j获取种子
+      case 9:
         taskDatas.push({
           serv: 'circlesAlgorithmsService',
           func: 'setSeeds'
         })
         break;
       // 导出种子路径到文件
-      case 5:
+      case 10:
+        // 删除fame临时属性
+        await this.neo4j.remove('fame');
         seedIds = await this.seeds.info();
         seedIds.forEach(async sid => {
           taskDatas.push({
@@ -349,7 +396,7 @@ export class CirclesJobsService extends BaseService {
         subJobsCount = seedIds.length
         break;
       // 种子路径文件导入数据库
-      case 6:
+      case 11:
         // 清空路径数据
         await this.neo4j.dropGraph();
         await this.nativeQuery(`truncate table circles_path`);
@@ -357,14 +404,14 @@ export class CirclesJobsService extends BaseService {
         seedIds.forEach(async sid => {
           taskDatas.push({
             serv: 'circlesAlgorithmsService',
-            func: 'importSeedPath',
+            func: 'importCsvPath',
             params: sid.id
           })
         });
         subJobsCount = seedIds.length
         break;
       // 计算rw值
-      case 7:
+      case 12:
         let userCount = await this.users.setAlgoUserList();
         for (let i = 0; i * 1000 < userCount; i++) {
           taskDatas.push({
@@ -379,21 +426,21 @@ export class CirclesJobsService extends BaseService {
         subJobsCount = Math.ceil(userCount / 1000)
         break;
       // 初始化种子rw
-      case 8:
+      case 13:
         taskDatas.push({
           serv: 'circlesAlgorithmsService',
           func: 'setSeedsScore'
         })
         break;
       // 将rw导入neo4j
-      case 9:
+      case 14:
         taskDatas.push({
           serv: 'circlesAlgorithmsService',
           func: 'setReputation'
         })
         break;
       // 更新种子用户资料
-      case 10:
+      case 15:
         taskDatas.push({
           serv: 'circlesSeedsService',
           func: 'getSeedsInfo'
@@ -410,6 +457,7 @@ export class CirclesJobsService extends BaseService {
       taskData.job = jobs;
       await this._saveAndStart(taskData)
     })
+    
     return `NEXT SETP: ${jobs.curr_step}`;
   }
 
