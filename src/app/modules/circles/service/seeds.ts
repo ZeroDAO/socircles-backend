@@ -92,6 +92,21 @@ export class CirclesSeedsService extends BaseService {
   }
 
   /**
+   * 当前种子用户 id
+   *@returns [id]
+   */
+  async top(algo) {
+    if (this.supportAlgo.indeOf(algo) == -1) {
+      throw new CoolCommException('不受支持的算法');
+    }
+    let topUsers = await this.neo4j.top(algo);
+    let userIds = topUsers.records.map(topUser => {
+      return this.neo4j.resHead(topUser);
+    });
+    return await this.seedsInfoEntity.findByIds(userIds);
+  }
+
+  /**
    * 当前种子用户信息列表
    */
   async list(nonce) {
@@ -138,9 +153,9 @@ export class CirclesSeedsService extends BaseService {
     });
 
     let seedsInfo = await this.usersEntity.findByIds(userIds);
-    
+
     // 直接拼接字符串
-    let url = this.circlesApi.url + 'users?';
+    let url = '';
     let newSeedsObj = {};
     seedsInfo.forEach((seed) => {
       let seedAddress = this.utils.toChecksumAddress(seed.address)
@@ -148,12 +163,9 @@ export class CirclesSeedsService extends BaseService {
       newSeedsObj[seedAddress] = seed.id;
     })
 
-    const data = await this.app.curl(url, {
-      contentType: 'json',
-      dataType: 'json'
-    });
+    const circlesInfo = await this.getCirclesUser(url);
 
-    data.data.data.forEach(async (item, index) => {
+    circlesInfo.forEach(async (item, index) => {
       let avatarUrl = item.avatarUrl;
       await this.seedsInfoEntity.save({
         id: newSeedsObj[item.safeAddress],
@@ -183,9 +195,34 @@ export class CirclesSeedsService extends BaseService {
    */
   async fameIds() {
     let seedSet = await this.seedsEntity
-    .createQueryBuilder()
-    .orderBy("id", "DESC")
-    .getOne();
-  return seedSet.fame.split(',');
+      .createQueryBuilder()
+      .orderBy("id", "DESC")
+      .getOne();
+    return seedSet.fame.split(',');
+  }
+
+  /**
+   * 请求circles用户资料
+   */
+  async getCirclesUser(p) {
+    let url = this.circlesApi.url + 'users?'
+    const data = await this.app.curl(url + p, {
+      contentType: 'json',
+      dataType: 'json'
+    });
+    return data.data.data;
+  }
+
+  /**
+   * 请求circles用户资料
+   */
+  async saveCirclesUser(data) {
+    const { id, avatar, cid, username } = data;
+    await this.seedsInfoEntity.save({
+      id: id,
+      avatar: avatar ? avatar.slice(avatar.lastIndexOf('/') + 1, avatar.lenght) : null,
+      cid: cid || null,
+      username: username,
+    })
   }
 }

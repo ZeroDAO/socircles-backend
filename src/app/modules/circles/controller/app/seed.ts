@@ -22,4 +22,14 @@ export class SeedAppController extends BaseController {
   ) {
     return this.ok(await this.seeds.list(nonce))
   }
+
+  /**
+   * 种子信息列表
+   */
+  @Post('/top')
+  async top(
+    @Body() algo: string,
+  ) {
+    return this.ok(await this.seeds.top(algo));
+  }
 }
