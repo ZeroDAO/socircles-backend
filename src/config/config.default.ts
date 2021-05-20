@@ -35,7 +35,7 @@ export default (appInfo: EggAppInfo) => {
   // 支持的算法列表
   config.supportAlgo = [
     'betweenness',
-    'pageRank',
+    'pagerank',
     'articleRank',
     'degree',
     'harmonic',

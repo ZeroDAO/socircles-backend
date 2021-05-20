@@ -9,6 +9,7 @@ import { CirclesFameEntity } from '../entity/fame';
 import { CirclesUsersEntity } from '../entity/users';
 import { CirclesScoresEntity } from '../entity/scores';
 import { CirclesSysService } from './sys'
+import { CirclesSysInfoEntity } from '../entity/sys_info';
 import { CirclesNeo4jService } from './neo4j'
 import { Utils } from '../../../comm/utils';
 import { Config } from '@midwayjs/decorator';
@@ -37,6 +38,9 @@ export class CirclesSeedsService extends BaseService {
 
   @InjectEntityModel(CirclesFameEntity)
   fameEntity: Repository<CirclesFameEntity>;
+
+  @InjectEntityModel(CirclesSysInfoEntity)
+  sysInfoEntity: Repository<CirclesSysInfoEntity>;;
 
   @Inject()
   utils: Utils;
@@ -92,47 +96,35 @@ export class CirclesSeedsService extends BaseService {
   }
 
   /**
-   * 当前种子用户 id
-   *@returns [id]
+   * 获取Top用户
    */
   async top(algo) {
-    if (this.supportAlgo.indeOf(algo) == -1) {
+    if (algo != 'reputation' && this.supportAlgo.indexOf(algo) == -1) {
       throw new CoolCommException('不受支持的算法');
     }
     let topUsers = await this.neo4j.top(algo);
     let userIds = topUsers.records.map(topUser => {
       return this.neo4j.resHead(topUser);
     });
-    return await this.seedsInfoEntity.findByIds(userIds);
+    return await this._userInfo(userIds);
   }
 
   /**
-   * 当前种子用户信息列表
+   * nonce下种子用户和名人堂信息列表
    */
-  async list(nonce) {
+  async list(nonce, type = 'seeds') {
     if (!this.utils.isNmber(nonce)) {
       throw new CoolCommException('参数不正确');
     }
     const seedSet = await this.seedsEntity.findOne(nonce);
     if (_.isEmpty(seedSet)) {
-      throw new CoolCommException('SEED NO EXIT!');
+      throw new CoolCommException('NO EXIT!');
     }
-    const ids = seedSet.seeds.split(',');
-    return await this.nativeQuery(
-      `SELECT
-        s.avatar,
-        s.id,
-        s.username,
-        u.address
-      FROM
-        circles_seeds_info s
-      INNER JOIN
-        circles_users u
-        ON u.id = s.id
-      WHERE
-        s.id IN (?)`,
-      [ids]
-    );
+    if (!seedSet[type]) {
+      return [];
+    }    
+    const ids = seedSet[type].split(',');
+    return await this._userInfo(ids);
   }
 
   /**
@@ -188,6 +180,9 @@ export class CirclesSeedsService extends BaseService {
     await this.seedsEntity.update(sysInfo.nonce, {
       fame: fameArr.toString()
     })
+    await this.sysInfoEntity.update(sysInfo.id, {
+      fame_count: fameArr.length
+    });
   }
 
   /**
@@ -214,7 +209,7 @@ export class CirclesSeedsService extends BaseService {
   }
 
   /**
-   * 请求circles用户资料
+   * 保存circles用户资料
    */
   async saveCirclesUser(data) {
     const { id, avatar, cid, username } = data;
@@ -224,5 +219,27 @@ export class CirclesSeedsService extends BaseService {
       cid: cid || null,
       username: username,
     })
+  }
+
+  /**
+   * 用户资料
+   *@param ids 用户id数组 [...id]
+   */
+  async _userInfo(ids) {
+    return await this.nativeQuery(
+      `SELECT
+        s.avatar,
+        s.id,
+        s.username,
+        u.address
+      FROM
+        circles_seeds_info s
+      INNER JOIN
+        circles_users u
+        ON u.id = s.id
+      WHERE
+        s.id IN (?)`,
+      [ids]
+    );
   }
 }

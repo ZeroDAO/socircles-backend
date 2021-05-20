@@ -23,6 +23,9 @@ export class CirclesSysInfoEntity extends BaseEntity {
   @Column({ nullable: true })
   seed_count: number;
 
+  @Column({ default: 0 })
+  fame_count: number;
+
   @Column({ nullable: true })
   user_count: number;
 

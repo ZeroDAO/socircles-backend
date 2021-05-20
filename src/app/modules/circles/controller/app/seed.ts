@@ -24,7 +24,18 @@ export class SeedAppController extends BaseController {
   }
 
   /**
-   * 种子信息列表
+   * 名人堂列表
+   */
+  @Post('/fame')
+  async fame(
+    @Body() nonce: number,
+  ) {
+
+    return this.ok(await this.seeds.list(nonce, 'fame'))
+  }
+
+  /**
+   * top 用户信息
    */
   @Post('/top')
   async top(

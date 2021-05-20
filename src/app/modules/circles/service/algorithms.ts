@@ -325,7 +325,7 @@ export class CirclesAlgorithmsService extends BaseService {
       case "betweenness":
         r = await this.neo4j.betweennessWrite();
         break;
-      case "pageRank":
+      case "pagerank":
         r = await this.neo4j.pageRankWrite();
         break;
       case "articleRank":
