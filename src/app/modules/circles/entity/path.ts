@@ -24,6 +24,6 @@ export class CirclesPathEntity extends BaseEntity {
   @Column()
   costs: string;
 
-  @Column({ comment: '总长度'})
+  @Column()
   totalCost: number;
 }

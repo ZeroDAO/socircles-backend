@@ -205,6 +205,7 @@ export class CirclesSeedsService extends BaseService {
       contentType: 'json',
       dataType: 'json'
     });
+    
     return data.data.data;
   }
 
@@ -214,10 +215,10 @@ export class CirclesSeedsService extends BaseService {
   async saveCirclesUser(data) {
     const { id, avatar, cid, username } = data;
     await this.seedsInfoEntity.save({
-      id: id,
+      id: Number(id),
       avatar: avatar ? avatar.slice(avatar.lastIndexOf('/') + 1, avatar.lenght) : null,
       cid: cid || null,
-      username: username,
+      username: username
     })
   }
 

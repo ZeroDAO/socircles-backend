@@ -164,7 +164,7 @@ export class CirclesAlgorithmsService extends BaseService {
    * 计算种子路径至其他所有节点最短路径并生成cvs
    */
   async getFamePath(uid) {
-    return await this.neo4j.pathFile(uid, 'fame', 1);
+    return await this.neo4j.pathFile(uid, 'fame', false);
   }
 
   /**
@@ -226,6 +226,7 @@ export class CirclesAlgorithmsService extends BaseService {
   /**
    * 将种子用户路径cvs导入mysql
    * 文件路径默认在neo4j安装文件夹下 /import/seed_path_${sid}.csv
+   * IGNORE 2 ROWS : 忽略前两行无用数据
    *@param sid: 源节点用户uid
    */
   async importCsvPath(sid, type = 'seed') {
@@ -236,7 +237,7 @@ export class CirclesAlgorithmsService extends BaseService {
       ENCLOSED BY '"'
       LINES TERMINATED BY '\n'
       IGNORE 2 ROWS
-      (\`SID\`, \`TID\`, \`NIDS\`, \`COSTS\`,\`TOTALCOST\`)
+      (\`SID\`, \`TID\`, \`NIDS\`, \`TOTALCOST\`, \`COSTS\`)
     `);
   }
 
@@ -299,11 +300,11 @@ export class CirclesAlgorithmsService extends BaseService {
    * 计算其他节点到名人堂距离
    */
   async fameCost() {
-    const cost = await this.pathEntity.createQueryBuilder()
-      .groupBy('tid')
-      .select("SUM(totalCost)", "cost")
-      .getRawMany();
-    await this.fameCostEntity.save(cost);
+    await this.nativeQuery(`truncate table circles_fame_cost`);
+    const costData = await this.nativeQuery(`
+      SELECT SUM(totalCost) AS cost, tid, count(*) AS  count FROM circles_path GROUP BY tid
+    `);
+    await this.fameCostEntity.save(costData);
   }
 
   /**

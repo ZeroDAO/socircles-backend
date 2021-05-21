@@ -124,6 +124,7 @@ export class CirclesNeo4jService extends BaseService {
       CALL gds.graph.exists('${Graph}')
       YIELD exists
     `);
+    
     return this.resHead(exitRes.records[0]);
   }
 
@@ -439,8 +440,7 @@ export class CirclesNeo4jService extends BaseService {
     return await this.run(`
       WITH "MATCH (source:User {uid: ${uid}})
       CALL gds.beta.allShortestPaths.dijkstra.stream('${Graph}', {
-        sourceNode: id(source),
-        relationshipWeightProperty: ${weight ? weight : 'weight'}
+        sourceNode: id(source)${weight ? ',relationshipWeightProperty: weight' : ''}
       })
       YIELD sourceNode, targetNode, totalCost, nodeIds, costs
       WHERE size(nodeIds) < 6
@@ -490,10 +490,10 @@ export class CirclesNeo4jService extends BaseService {
     return await this.run(`
     CALL apoc.load.jdbc(
       '${this.getJdbcConfig()}',
-      'select id, cost from circles_fame_cost'
+      'select tid, cost, count from circles_fame_cost'
     ) YIELD row
-    MATCH (n:User {uid: row.id})
-    SET n.fame = row.${algo} / row.fame
+    MATCH (n:User {uid: row.tid})
+    SET n.fame = n.${algo} * ( row.count * 6 - row.cost )
     `);
   }
 

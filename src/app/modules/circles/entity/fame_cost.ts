@@ -14,4 +14,7 @@ export class CirclesFameCostEntity extends BaseEntity {
 
   @Column({ comment: '距离' })
   cost: number;
+
+  @Column({ comment: '有路径的个数' })
+  count: number;
 }

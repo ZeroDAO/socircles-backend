@@ -148,6 +148,7 @@ export class CirclesJobsService extends BaseService {
     let curr_sub_step = await this._getSubJobsDone(jobs);
 
     if (jobs.total_sub_step <= curr_sub_step || jobs.total_sub_step <= jobs.curr_sub_step) {
+      
       return await this._nextStep(jobs);
     }
 
@@ -289,12 +290,11 @@ export class CirclesJobsService extends BaseService {
     let seedIds = null;
     let taskDatas = [];
     let subJobsCount = 1;
-    const fameIds = await this.seeds.fameIds();
+    let fameIds = null;
 
     switch (jobs.curr_step) {
       // 初始化rw值
       case 0:
-
         taskDatas.push({
           serv: 'circlesAlgorithmsService',
           func: 'initNoSetRepu'
@@ -314,7 +314,7 @@ export class CirclesJobsService extends BaseService {
           func: 'createGraphIfNotExit'
         })
         break;
-      // 中心度计算
+      // 对照组中心度计算
       case 3:
         let algos = this.supportAlgo;
         algos.forEach(async algo => {
@@ -335,6 +335,8 @@ export class CirclesJobsService extends BaseService {
         break;
       // 计算名人堂用户到其他各点距离导出到cvs
       case 5:
+        fameIds = await this.seeds.fameIds();
+
         fameIds.forEach(async uid => {
           taskDatas.push({
             serv: 'circlesAlgorithmsService',
@@ -347,6 +349,7 @@ export class CirclesJobsService extends BaseService {
       // 将名人堂cvs导入路径数据库
       case 6:
         await this.nativeQuery(`truncate table circles_path`);
+        fameIds = await this.seeds.fameIds();
         fameIds.forEach(async uid => {
           taskDatas.push({
             serv: 'circlesAlgorithmsService',
@@ -357,7 +360,7 @@ export class CirclesJobsService extends BaseService {
         subJobsCount = fameIds.length;
         break;
       // 计算各点距名人堂路径总和
-      case 7:
+      case 7:        
         taskDatas.push({
           serv: 'circlesAlgorithmsService',
           func: 'fameCost'
@@ -393,8 +396,8 @@ export class CirclesJobsService extends BaseService {
         break;
       // 种子路径文件导入数据库
       case 11:
-        // 清空路径数据
         await this.neo4j.dropGraph();
+        // 清空路径数据
         await this.nativeQuery(`truncate table circles_path`);
         seedIds = await this.seeds.info();
         seedIds.forEach(async sid => {
@@ -455,7 +458,7 @@ export class CirclesJobsService extends BaseService {
     })
 
     return `NEXT SETP: ${jobs.curr_step}`;
-  }
+  }D
 
   async _saveAndStart(taskData) {
     let { job, serv, func, params } = taskData;
