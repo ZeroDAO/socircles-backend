@@ -177,7 +177,8 @@ export class CirclesSeedsService extends BaseService {
     const fame = await this.fameEntity.find({ status: 1 });
     const fameArr = fame.map(x => { return x.id });
     let sysInfo = await this.sys.infoAndCheckAlgo();
-    await this.seedsEntity.update(sysInfo.nonce, {
+    await this.seedsEntity.save({
+      id: sysInfo.nonce,
       fame: fameArr.toString()
     })
     await this.sysInfoEntity.update(sysInfo.id, {
