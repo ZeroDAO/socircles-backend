@@ -122,7 +122,7 @@ export class CirclesSeedsService extends BaseService {
     }
     if (!seedSet[type]) {
       return [];
-    }    
+    }
     const ids = seedSet[type].split(',');
     return await this._userInfo(ids);
   }
@@ -134,6 +134,7 @@ export class CirclesSeedsService extends BaseService {
     let userIds = await this.ids();
     let supportAlgo = this.supportAlgo;
 
+    // Top 用户
     supportAlgo.forEach(async e => {
       let topUsers = await this.neo4j.top(e, 20);
       topUsers.records.forEach(topUser => {
@@ -146,26 +147,28 @@ export class CirclesSeedsService extends BaseService {
 
     let seedsInfo = await this.usersEntity.findByIds(userIds);
 
-    // 直接拼接字符串
-    let url = '';
-    let newSeedsObj = {};
-    seedsInfo.forEach((seed) => {
-      let seedAddress = this.utils.toChecksumAddress(seed.address)
-      url = url + 'address[]=' + seedAddress + '&';
-      newSeedsObj[seedAddress] = seed.id;
-    })
-
-    const circlesInfo = await this.getCirclesUser(url);
-
-    circlesInfo.forEach(async (item, index) => {
-      let avatarUrl = item.avatarUrl;
-      await this.seedsInfoEntity.save({
-        id: newSeedsObj[item.safeAddress],
-        avatar: avatarUrl ? avatarUrl.slice(avatarUrl.lastIndexOf('/') + 1, avatarUrl.lenght) : null,
-        cid: item.id,
-        username: item.username,
+    for (let i = 0; i < userIds.length / 30; i++) {
+      // 直接拼接字符串
+      let url = '';
+      let newSeedsObj = {};
+      seedsInfo.slice(i * 30, (i + 1) * 30 - 1).forEach((seed) => {
+        let seedAddress = this.utils.toChecksumAddress(seed.address)
+        url = url + 'address[]=' + seedAddress + '&';
+        newSeedsObj[seedAddress] = seed.id;
       })
-    });
+
+      const circlesInfo = await this.getCirclesUser(url);
+
+      circlesInfo.forEach(async (item) => {
+        let avatarUrl = item.avatarUrl;
+        await this.seedsInfoEntity.save({
+          id: newSeedsObj[item.safeAddress],
+          avatar: avatarUrl ? avatarUrl.slice(avatarUrl.lastIndexOf('/') + 1, avatarUrl.lenght) : null,
+          cid: item.id,
+          username: item.username,
+        })
+      });
+    }
 
     return 'SEED INFO DONE';
   }
@@ -206,7 +209,7 @@ export class CirclesSeedsService extends BaseService {
       contentType: 'json',
       dataType: 'json'
     });
-    
+
     return data.data.data;
   }
 
