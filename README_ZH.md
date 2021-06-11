@@ -2,57 +2,65 @@
   <a href="https://www.0p0.org/">
     <img alt="ZeroDAO" src="https://pic.tom24h.com/0p0/img/ZERODAO.svg" height="60" />
   </a>
-  <span>|</span>
+  <span style="line-height:60px">|</span>
   <a href="https://www.socircles.info/">
     <img alt="socircles" src="https://pic.tom24h.com/0p0/img/socircles-logo.svg" height="50" />
   </a>
 </p>
 
-<h4 align="center">
-  <a>English</a>
+
+<h5 align="center">
+  <a href="./README.md">EN</a>
   <span> / </span>
-  <a href="./README_ZH.md">中文</a>
-</h4>
+  <a>中文</a>
+</h5>
 
 
 
 
-Calibration and tuning ZeroDAO's reputation system algorithm, using circles user data and relational data, as a control group to calculate `Betweenness` , `ArticleRank` , `PageRank` , `Closeness` , `Harmonic Centrality ` , `Eigenvector Centrality` , `Degree Centrality` , statistical data from various algorithms during the iteration.
 
-This is the back-end repository for socircles and other related:
+校验和调优 ZeroDAO 的声誉系统算法，采用 circles 用户数据和关系数据，作为对照组计算 `Betweenness` , `ArticleRank` , `PageRank` , `Closeness` , `Harmonic Centrality` , `Eigenvector Centrality` , `Degree Centrality` , 统计迭代过程中各种算法数据。
 
-Website: https://socircles.info
+这是 socircles 的后端仓库，其他相关：
 
-Front-end: https://github.com/ZeroDAO/socircles-ui
+应用: https://socircles.info
 
-Management: https://github.com/ZeroDAO/socircles-admin
+前端: https://github.com/ZeroDAO/socircles-ui
 
-## Features
+后台: https://github.com/ZeroDAO/socircles-admin
 
-- Using the graph database `neo4j` to store user and relational data and to run the control group algorithm.
-- `mysql` storage of various information during the TIR calculation.
-- Using the task system to synchronise data from `theGraph`.
-- Using the task system to calculate reputation values in steps and batches and to save information on the results.
-- Automatic completion of calculation tasks, fallback and recovery functions after failed task execution.
-- Calculation of various centrality algorithms for the user;
-- Find the various weight values of users in circles;
-- Find the shortest path between circles users;
+## 实现
 
-The purpose of this system is to validate, tune and present algorithms, so it is not efficient. You can actually use `neo4j` directly to compute reputation values, or if you need more speed, you can interface to a computational engine such as `spark`.
+- 采用 `cool-admin` 快速开发后台；
+- 使用图数据库 `neo4j` 存储用户和关系数据，并运行对照组算法；
+- `mysql` 存储 TIR 计算过程中的各种信息；
+- 使用任务系统从 `theGraph` 同步数据；
+- 使用任务系统分步分批计算声誉值，并保存结果信息；
+- 自动完成全部计算，失败任务可回退或恢复；
+- Circles 的所有用户各种中心度计算；
+- 可查询单个用户的所有计算值；
+- 可查找两个用户之间的最短距离；
 
-## Preparation
+本系统的目的是验证、调整和展示算法，所以它并不是高效的，实际上你可以直接使用 `neo4j` 计算声誉值，如果需要更快的速度，可以对接 `spark` 等计算引擎。不可用在 ZeroDAO 声誉系统的计算汇总，因为存在精度差异。
 
-1. **Install `neo4j` (2.2.x)**
+## 技术栈
 
-install [`neo4j community server`](https://neo4j.com/download-center/#community);
+* 数据库：**`neo4j` `mysql`**
+* 后端：**`node.js` `midway.js` `egg.js` `typescript` `cool-admin`**
 
-2. **Install `neo4j` Plugins**
+## 安装
 
-install `graph-data-science`,  `APOC` ，Take care to choose the correct version;;
+1. **安装 `neo4j` (2.2.x版本)**
 
-3. **Configuration `neo4j` Plugins**
+安装 [`neo4j community server`](https://neo4j.com/download-center/#community) （社区版）;
 
-- `neo4j/conf/neo4j.conf` Add at the end：
+2. **安装 `neo4j` 插件**
+
+安装插件 `graph-data-science` `APOC` ，注意选择正确版本;
+
+3. **配置 `neo4j` 插件**
+
+- `neo4j/conf/neo4j.conf` 尾部添加：
 
 ```js
 dbms.security.procedures.unrestricted=apoc.*, gds.*
@@ -65,13 +73,13 @@ dbms.security.procedures.whitelist=apoc.*, gds.*
 apoc.export.file.enabled=true
 ```
 
-## Configuration
+## 配置
 
-The configuration file is located in`src/config/config.local.ts`
+配置文件位于`src/config/config.local.ts`
 
-1. Configure `mysql` 
+1. 配置`mysql` 
 
-`>=5.7 Versions`，node (`>=12.x`)，Automatic initialisation and data import on first start-up
+`>=5.7版本`，node版本(`>=12.x`)，首次启动会自动初始化并导入数据
 
 ```js
 config.orm = {
@@ -86,7 +94,7 @@ config.orm = {
 }
 ```
 
-2.  Configure `neo4j`
+2.  配置`neo4j`
 
 ```js
 config.neo4j = {
@@ -97,8 +105,10 @@ config.neo4j = {
     },
   }
 ```
-## Get Started
-### Local development
+
+## 开始
+
+### 本地开发
 
 ```bash
 $ npm i
@@ -106,19 +116,21 @@ $ npm run dev
 $ open http://localhost:8001/
 ```
 
-### build
+注： `npm i`如果安装失败可以尝试使用[cnpm](https://developer.aliyun.com/mirror/NPM?from=tnpm)，或者切换您的镜像源
+
+### 部署
 
 ```bash
 $ npm start
 $ npm stop
 ```
 
-### Commands
+### 内置指令
 
-- Use `npm run lint` to do code style checks.
-- Use `npm test` to do Execute unit tests.
+- 使用 `npm run lint` 来做代码风格检查。
+- 使用 `npm test` 来执行单元测试。
 
-## Thanks
+## 感谢
 
 [midway](https://midwayjs.org)
 [cool-admin](https://www.cool-js.com)
